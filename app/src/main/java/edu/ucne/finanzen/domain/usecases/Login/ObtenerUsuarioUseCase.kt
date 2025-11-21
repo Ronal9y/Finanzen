@@ -1,4 +1,4 @@
-package edu.ucne.finanzen.domain.usecases
+package edu.ucne.finanzen.domain.usecases.Login
 
 import edu.ucne.finanzen.data.remote.Resource
 import edu.ucne.finanzen.data.remote.dto.UsuarioResponse

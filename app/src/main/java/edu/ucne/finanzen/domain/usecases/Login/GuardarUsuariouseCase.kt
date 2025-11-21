@@ -1,8 +1,9 @@
-package edu.ucne.finanzen.domain.usecases
+package edu.ucne.finanzen.domain.usecases.Login
 
-import edu.ucne.finanzen.data.remote.dto.UsuarioResponse
 import edu.ucne.finanzen.data.remote.Resource
+import edu.ucne.finanzen.data.remote.dto.UsuarioResponse
 import edu.ucne.finanzen.domain.repository.UsuarioRepository
+import edu.ucne.finanzen.domain.usecases.Login.ValidarUsuariouseCase
 import javax.inject.Inject
 
 class GuardarUsuariouseCase @Inject constructor(
