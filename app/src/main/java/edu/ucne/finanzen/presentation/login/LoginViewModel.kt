@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import edu.ucne.finanzen.data.remote.dto.UsuarioResponse
 import edu.ucne.finanzen.data.remote.Resource
-import edu.ucne.finanzen.domain.usecases.UsuariosUseCase
+import edu.ucne.finanzen.domain.usecases.Login.UsuariosUseCase
 
 @HiltViewModel
 open class LoginViewModel @Inject constructor(
