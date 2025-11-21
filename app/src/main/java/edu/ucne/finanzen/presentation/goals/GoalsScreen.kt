@@ -122,7 +122,6 @@ fun GoalsScreen(
         }
     }
 }
-
 @Composable
 fun EmptyGoalsSection(onAddGoal: () -> Unit) {
     Box(
