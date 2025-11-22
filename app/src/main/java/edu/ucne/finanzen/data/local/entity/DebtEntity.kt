@@ -17,5 +17,6 @@ data class DebtEntity(
     val creditor: String,
     val status: String,                  // "ACTIVE"...
     val penaltyRate: Double = 5.0,
+    val usuarioId: Int,
     val creationDate: String
 )

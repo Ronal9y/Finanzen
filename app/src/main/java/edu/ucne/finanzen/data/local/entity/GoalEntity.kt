@@ -11,6 +11,7 @@ data class GoalEntity(
     val targetAmount: Double,
     val currentAmount: Double = 0.0,
     val deadline: String,
+    val usuarioId: Int,
     val description: String
 )
 
