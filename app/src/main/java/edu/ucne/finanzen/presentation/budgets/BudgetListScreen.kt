@@ -1,11 +1,23 @@
 package edu.ucne.finanzen.presentation.budgets
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,7 +57,7 @@ fun BudgetListItem(
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            Row(
+            androidx.compose.foundation.layout.Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -70,7 +82,7 @@ fun BudgetListItem(
             val percentage = (progress * 100).toInt()
 
             Text(
-                "${"%.2f".format(budget.spent)} $ / ${"%.2f".format(budget.limit)} S",
+                "${"%.2f".format(budget.spent)} $ / ${"%.2f".format(budget.limit)} $",
                 style = MaterialTheme.typography.bodyMedium
             )
 
@@ -90,7 +102,7 @@ fun BudgetListItem(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            Row(
+            androidx.compose.foundation.layout.Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -108,6 +120,7 @@ fun BudgetListItem(
         }
     }
 }
+
 @Preview(showBackground = true)
 @Composable
 private fun BudgetListScreenPreview() {
@@ -120,7 +133,8 @@ private fun BudgetListScreenPreview() {
                     limit = 600.0,
                     spent = 450.0,
                     month = "2025-11",
-                    alertThreshold = 80
+                    alertThreshold = 80,
+                    usuarioId = 1
                 ),
                 Budget(
                     budgetId = 2,
@@ -128,7 +142,8 @@ private fun BudgetListScreenPreview() {
                     limit = 300.0,
                     spent = 310.0,
                     month = "2025-11",
-                    alertThreshold = 80
+                    alertThreshold = 80,
+                    usuarioId = 1
                 )
             ),
             onDeleteBudget = {}
@@ -147,7 +162,8 @@ private fun BudgetListItemPreview() {
                 limit = 200.0,
                 spent = 180.0,
                 month = "2025-11",
-                alertThreshold = 80
+                alertThreshold = 80,
+                usuarioId = 1
             ),
             onDelete = {}
         )
