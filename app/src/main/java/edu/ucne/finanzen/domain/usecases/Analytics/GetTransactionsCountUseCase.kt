@@ -6,5 +6,5 @@ import javax.inject.Inject
 class GetTransactionsCountUseCase @Inject constructor(
     private val repository: TransactionRepository
 ) {
-    suspend operator fun invoke(): Int = repository.getTransactionsCount()
+    suspend operator fun invoke(usuarioId: Int): Int = repository.getTransactionsCount()
 }

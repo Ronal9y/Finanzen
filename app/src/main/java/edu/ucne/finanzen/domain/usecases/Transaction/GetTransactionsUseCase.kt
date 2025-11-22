@@ -8,5 +8,6 @@ import javax.inject.Inject
 class GetTransactionsUseCase @Inject constructor(
     private val repository: TransactionRepository
 ) {
-    operator fun invoke(): Flow<List<Transaction>> = repository.getAllTransactions()
+    operator fun invoke(usuarioId: Int): Flow<List<Transaction>> =
+        repository.getAllTransactions(usuarioId)
 }

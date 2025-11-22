@@ -8,5 +8,6 @@ import javax.inject.Inject
 class GetTransactionsByTypeUseCase @Inject constructor(
     private val repository: TransactionRepository
 ) {
-    operator fun invoke(type: String): Flow<List<Transaction>> = repository.getTransactionsByType(type)
+    operator fun invoke(usuarioId: Int, type: String): Flow<List<Transaction>> =
+        repository.getTransactionsByType(usuarioId, type)
 }
