@@ -6,5 +6,6 @@ import javax.inject.Inject
 class GetTotalCompletionPercentageUseCase @Inject constructor(
     private val repository: GoalRepository
 ) {
-    suspend operator fun invoke(): Double = repository.getTotalCompletionPercentage()
+    suspend operator fun invoke(usuarioId: Int): Double =
+        repository.getTotalCompletionPercentage(usuarioId)
 }
