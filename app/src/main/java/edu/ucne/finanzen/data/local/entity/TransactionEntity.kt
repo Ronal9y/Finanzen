@@ -13,6 +13,7 @@ data class TransactionEntity(
     val amount: Double,
     val category: CategoryType,
     val description: String,
+    val usuarioId: Int,
     val date: String
 )
 

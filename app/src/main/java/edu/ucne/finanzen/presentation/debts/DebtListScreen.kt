@@ -21,6 +21,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import edu.ucne.finanzen.domain.model.CompoundingPeriod
 import edu.ucne.finanzen.domain.model.Debt
+import edu.ucne.finanzen.domain.model.DebtStatus
+import edu.ucne.finanzen.domain.model.InterestType
 import edu.ucne.finanzen.ui.theme.FinanzenTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,7 +59,6 @@ fun DebtListScreen(
                             viewModel.onEvent(
                                 DebtEvent.PagarCuota(state.mostrarDialogoPago!!, monto)
                             )
-                            // ← cerrar aquí
                             viewModel.onEvent(DebtEvent.MostrarDialogoPago(null))
                             montoPago = ""
                         }
@@ -66,7 +67,6 @@ fun DebtListScreen(
                     Text("Pagar")
                 }
             },
-
             dismissButton = {
                 TextButton(onClick = { viewModel.onEvent(DebtEvent.MostrarDialogoPago(null)) }) {
                     Text("Cancelar")
@@ -105,8 +105,6 @@ fun DebtListScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         Text("Saldo actual: $${"%.2f".format(saldoActual)}")
                         Text("Penalización base: ${it.penaltyRate}%")
-
-                        // Campo para penalización adicional
                         Spacer(modifier = Modifier.height(8.dp))
                         Text("Penalización adicional (%):")
                         OutlinedTextField(
@@ -118,9 +116,11 @@ fun DebtListScreen(
                         )
 
                         Text("Total penalización: ${"%.1f".format(totalPenalizacion)}%")
-                        Text("Nuevo saldo: $${"%.2f".format(nuevoSaldo)}",
+                        Text(
+                            "Nuevo saldo: $${"%.2f".format(nuevoSaldo)}",
                             color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold)
+                            fontWeight = FontWeight.Bold
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
 
@@ -140,11 +140,13 @@ fun DebtListScreen(
                     onClick = {
                         if (nuevaFechaRenovar.isNotBlank()) {
                             val penalizacionExtra = penalizacionAdicional.toDoubleOrNull() ?: 0.0
-                            viewModel.onEvent(DebtEvent.RenovarDeuda(
-                                state.mostrarDialogoRenovar!!,
-                                nuevaFechaRenovar,
-                                penalizacionExtra
-                            ))
+                            viewModel.onEvent(
+                                DebtEvent.RenovarDeuda(
+                                    state.mostrarDialogoRenovar!!,
+                                    nuevaFechaRenovar,
+                                    penalizacionExtra
+                                )
+                            )
                             nuevaFechaRenovar = ""
                             penalizacionAdicional = "0.0"
                         }
@@ -208,10 +210,7 @@ fun DebtListScreen(
                         DeudaCard(
                             deuda = deuda,
                             onAbonar = { id -> viewModel.onEvent(DebtEvent.MostrarDialogoPago(id)) },
-                            onEliminar = { id -> viewModel.onEvent(DebtEvent.EliminarDeuda(id)) },
-                            /*onRenovar ={} { id ->
-                                viewModel.onEvent(DeudaEvent.MostrarDialogoRenovar(id))
-                            }*/
+                            onEliminar = { id -> viewModel.onEvent(DebtEvent.EliminarDeuda(id)) }
                         )
                     }
                 }
@@ -384,7 +383,6 @@ private fun DeudaListScreenPreview() {
     FinanzenTheme {
         DebtListScreen(
             onBack = {}
-            
         )
     }
 }
@@ -404,9 +402,10 @@ private fun DeudaCardPreview() {
                 penaltyRate = 3.0,
                 dueDate = "2025-12-31",
                 compoundingPeriod = CompoundingPeriod.MONTHLY,
-                interestType = TODO(),
-                status = TODO(),
-                creationDate = TODO()
+                interestType = InterestType.SIMPLE,
+                status = DebtStatus.ACTIVE,
+                creationDate = "2024-01-01",
+                usuarioId = 1
             ),
             onAbonar = {},
             onEliminar = {}

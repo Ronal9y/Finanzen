@@ -14,10 +14,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import edu.ucne.finanzen.data.local.database.FinanceDatabase
 import edu.ucne.finanzen.domain.model.Goal
 import edu.ucne.finanzen.ui.theme.FinanzenTheme
-
 
 @Composable
 fun GoalListScreen(
@@ -197,7 +195,7 @@ fun GoalListItem(
 @Preview(showBackground = true)
 @Composable
 fun GoalListScreenPreview() {
-    FinanzenTheme() {
+    FinanzenTheme {
         GoalListScreen(
             goals = listOf(
                 Goal(
@@ -206,6 +204,7 @@ fun GoalListScreenPreview() {
                     targetAmount = 500000.0,
                     currentAmount = 50000.0,
                     deadline = "07 oct 2026",
+                    usuarioId = 1,
                     description = "mudarme"
                 ),
                 Goal(
@@ -214,6 +213,7 @@ fun GoalListScreenPreview() {
                     targetAmount = 10000.0,
                     currentAmount = 2500.0,
                     deadline = "31 dic 2024",
+                    usuarioId = 1,
                     description = "Ahorro para emergencias"
                 )
             ),
@@ -226,7 +226,7 @@ fun GoalListScreenPreview() {
 @Preview(showBackground = true)
 @Composable
 fun GoalListItemPreview() {
-    FinanzenTheme() {
+    FinanzenTheme {
         GoalListItem(
             goal = Goal(
                 goalId = 1,
@@ -234,6 +234,7 @@ fun GoalListItemPreview() {
                 targetAmount = 500000.0,
                 currentAmount = 50000.0,
                 deadline = "07 oct 2026",
+                usuarioId = 1,
                 description = "mudarme"
             ),
             onDelete = {},

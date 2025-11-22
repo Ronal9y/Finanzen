@@ -8,6 +8,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import java.text.SimpleDateFormat
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,7 +63,8 @@ fun AddGoalDialog(
             OutlinedTextField(
                 value = deadline,
                 onValueChange = { deadline = it },
-                label = { Text("Fecha límite (Ej: 07 oct 2026)") },
+                label = { Text("Fecha límite (YYYY-MM-DD)") },
+                placeholder = { Text("Ej: 2024-12-31") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -88,7 +91,11 @@ fun AddGoalDialog(
                     onClick = {
                         val targetDouble = target.toDoubleOrNull() ?: 0.0
                         if (name.isNotBlank() && targetDouble > 0) {
-                            onConfirm(name, targetDouble, desc, deadline)
+                            // Convertir fecha a formato ISO
+                            val isoDeadline = convertToISODate(deadline)
+                            println("🔍 Fecha enviada a API: '$isoDeadline'")
+                            onConfirm(name, targetDouble, desc, isoDeadline)
+                            onDismiss() // Cerrar diálogo después de crear
                         }
                     }
                 ) {
@@ -96,5 +103,49 @@ fun AddGoalDialog(
                 }
             }
         }
+    }
+}
+
+
+fun convertToISODate(dateString: String): String {
+    return try {
+        if (dateString.isBlank()) {
+
+            val calendar = Calendar.getInstance()
+            calendar.add(Calendar.MONTH, 6)
+            val formatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+            formatter.format(calendar.time)
+        } else if (dateString.contains("-") && dateString.length == 10) {
+
+            "${dateString}T00:00:00"
+        } else {
+
+            val inputFormats = listOf(
+                SimpleDateFormat("dd MMM yyyy", Locale.getDefault()),
+                SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()),
+                SimpleDateFormat("MM/dd/yyyy", Locale.getDefault())
+            )
+
+            var parsedDate: Date? = null
+            for (format in inputFormats) {
+                try {
+                    parsedDate = format.parse(dateString)
+                    if (parsedDate != null) break
+                } catch (e: Exception) {
+
+                }
+            }
+
+            if (parsedDate != null) {
+                val outputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+                outputFormat.format(parsedDate)
+            } else {
+
+                "2024-12-31T00:00:00"
+            }
+        }
+    } catch (e: Exception) {
+
+        "2024-12-31T00:00:00"
     }
 }

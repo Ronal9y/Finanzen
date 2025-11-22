@@ -16,8 +16,8 @@ import kotlin.math.pow
 class GetDebtsWithInterestUseCase @Inject constructor(
     private val repo: DebtRepository
 ) {
-    operator fun invoke(): Flow<List<Debt>> =
-        repo.getAllDebts().map { list ->
+    operator fun invoke(usuarioId: Int): Flow<List<Debt>> =
+        repo.getAllDebts(usuarioId).map { list ->
             list.map { debt ->
                 debt.copy(remainingAmount = calculate(debt))
             }
@@ -45,9 +45,14 @@ class GetDebtsWithInterestUseCase @Inject constructor(
         return d.principalAmount * factor
     }
 
-    private fun today() = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+    private fun today() =
+        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+
     private fun daysBetween(start: String, end: String): Long {
         val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        return TimeUnit.DAYS.convert(fmt.parse(end).time - fmt.parse(start).time, TimeUnit.MILLISECONDS)
+        return TimeUnit.DAYS.convert(
+            fmt.parse(end).time - fmt.parse(start).time,
+            TimeUnit.MILLISECONDS
+        )
     }
 }

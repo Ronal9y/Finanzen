@@ -8,5 +8,5 @@ import javax.inject.Inject
 class GetGoalsUseCase @Inject constructor(
     private val repository: GoalRepository
 ) {
-    operator fun invoke(): Flow<List<Goal>> = repository.getAllGoals()
+    operator fun invoke(usuarioId: Int): Flow<List<Goal>> = repository.getAllGoals(usuarioId)
 }

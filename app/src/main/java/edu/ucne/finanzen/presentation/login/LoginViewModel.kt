@@ -10,10 +10,12 @@ import kotlinx.coroutines.launch
 import edu.ucne.finanzen.data.remote.dto.UsuarioResponse
 import edu.ucne.finanzen.data.remote.Resource
 import edu.ucne.finanzen.domain.usecases.Login.UsuariosUseCase
+import edu.ucne.finanzen.data.local.datastore.UserDataStore
 
 @HiltViewModel
 open class LoginViewModel @Inject constructor(
-    private val usuariosUseCase: UsuariosUseCase
+    private val usuariosUseCase: UsuariosUseCase,
+    private val userDataStore: UserDataStore
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LoginState())
@@ -33,9 +35,7 @@ open class LoginViewModel @Inject constructor(
                     error = null
                 )
             }
-            is LoginEvent.Save -> {
-                saveUsuario()
-            }
+            is LoginEvent.Save -> { saveUsuario() }
             is LoginEvent.Edit -> {
                 _state.value = _state.value.copy(
                     isDialogOpen = true,
@@ -62,16 +62,16 @@ open class LoginViewModel @Inject constructor(
                     error = null
                 )
             }
-            is LoginEvent.LoadUsuarios -> {
-                loadUsuarios()
-            }
-            is LoginEvent.Login -> {
-                login()
-            }
+            is LoginEvent.LoadUsuarios -> { loadUsuarios() }
+            is LoginEvent.Login -> { login() }
             is LoginEvent.Logout -> {
+                viewModelScope.launch {
+                    userDataStore.clearUserId()
+                }
                 _state.value = _state.value.copy(
                     isLoggedIn = false,
                     loggedInUserName = null,
+                    loggedInUserId = null,
                     userNameInput = "",
                     passwordInput = "",
                     error = null
@@ -89,25 +89,20 @@ open class LoginViewModel @Inject constructor(
 
             when (val result = usuariosUseCase.obtenerUsuarios()) {
                 is Resource.Success -> {
-                    val usuariosList = result.data ?: emptyList()
                     _state.value = _state.value.copy(
-                        usuarios = usuariosList,
-                        isLoading = false,
-                        error = null
+                        usuarios = result.data ?: emptyList(),
+                        isLoading = false
                     )
                 }
                 is Resource.Error -> {
-                    val msg = result.message ?: "Error al obtener usuarios"
                     _state.value = _state.value.copy(
                         usuarios = emptyList(),
                         isLoading = false,
-                        error = msg
+                        error = result.message ?: "Error al obtener usuarios"
                     )
                 }
                 is Resource.Loading -> {
-                    _state.value = _state.value.copy(
-                        isLoading = true
-                    )
+                    _state.value = _state.value.copy(isLoading = true)
                 }
             }
         }
@@ -124,10 +119,7 @@ open class LoginViewModel @Inject constructor(
         )
 
         viewModelScope.launch {
-            _state.value = _state.value.copy(
-                isLoading = true,
-                error = null
-            )
+            _state.value = _state.value.copy(isLoading = true, error = null)
 
             val validacion = usuariosUseCase.validarUsuario(usuario, usuarioId)
             if (validacion.isFailure) {
@@ -138,59 +130,71 @@ open class LoginViewModel @Inject constructor(
                 return@launch
             }
 
-            when (val result = usuariosUseCase.guardarUsuario(usuarioId, usuario)) {
+            when (usuariosUseCase.guardarUsuario(usuarioId, usuario)) {
                 is Resource.Success<*> -> {
-                    _state.value = _state.value.copy(
-                        isLoading = false,
-                        isDialogOpen = false,
-                        isEditing = false,
-                        usuarioId = null,
-                        error = null,
-                        isLoggedIn = true,
-                        loggedInUserName = usuario.userName
-                    )
-                    loadUsuarios()
+                    val usuariosResult = usuariosUseCase.obtenerUsuarios()
+                    if (usuariosResult is Resource.Success) {
+                        val usuariosList = usuariosResult.data ?: emptyList()
+                        val creado = usuariosList.firstOrNull {
+                            it.userName.equals(usuario.userName, ignoreCase = true) &&
+                                    it.password == usuario.password
+                        }
+
+                        if (creado != null) {
+                            userDataStore.saveUserId(creado.usuarioId)
+
+                            _state.value = _state.value.copy(
+                                isLoading = false,
+                                isDialogOpen = false,
+                                isEditing = false,
+                                usuarioId = null,
+                                isLoggedIn = true,
+                                loggedInUserName = creado.userName,
+                                loggedInUserId = creado.usuarioId
+                            )
+                        } else {
+                            _state.value = _state.value.copy(
+                                isLoading = false,
+                                error = "Usuario guardado, pero no se pudo recuperar"
+                            )
+                        }
+                    }
                 }
                 is Resource.Error<*> -> {
-                    val msg = result.message ?: "Error al guardar usuario"
                     _state.value = _state.value.copy(
                         isLoading = false,
-                        error = msg
+                        error = "Error al guardar usuario"
                     )
                 }
                 is Resource.Loading<*> -> {
-                    _state.value = _state.value.copy(
-                        isLoading = true
-                    )
+                    _state.value = _state.value.copy(isLoading = true)
                 }
             }
         }
     }
 
     private fun login() {
-        val currentState = _state.value
-        val userName = currentState.userNameInput
-        val password = currentState.passwordInput
+        val userName = _state.value.userNameInput
+        val password = _state.value.passwordInput
 
         viewModelScope.launch {
-            _state.value = _state.value.copy(
-                isLoading = true,
-                error = null
-            )
+            _state.value = _state.value.copy(isLoading = true, error = null)
 
             when (val result = usuariosUseCase.obtenerUsuarios()) {
                 is Resource.Success -> {
-                    val usuariosList = result.data ?: emptyList()
-                    val usuario = usuariosList.firstOrNull {
+                    val usuario = result.data?.firstOrNull {
                         it.userName.equals(userName, ignoreCase = true) &&
                                 it.password == password
                     }
+
                     if (usuario != null) {
+                        userDataStore.saveUserId(usuario.usuarioId)
+
                         _state.value = _state.value.copy(
                             isLoading = false,
                             isLoggedIn = true,
                             loggedInUserName = usuario.userName,
-                            error = null
+                            loggedInUserId = usuario.usuarioId
                         )
                     } else {
                         _state.value = _state.value.copy(
@@ -200,16 +204,13 @@ open class LoginViewModel @Inject constructor(
                     }
                 }
                 is Resource.Error -> {
-                    val msg = result.message ?: "Error al iniciar sesión"
                     _state.value = _state.value.copy(
                         isLoading = false,
-                        error = msg
+                        error = result.message ?: "Error al iniciar sesión"
                     )
                 }
                 is Resource.Loading -> {
-                    _state.value = _state.value.copy(
-                        isLoading = true
-                    )
+                    _state.value = _state.value.copy(isLoading = true)
                 }
             }
         }

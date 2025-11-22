@@ -14,6 +14,7 @@ data class Debt(
     val remainingAmount: Double,         // Monto actualizado
     val creditor: String,
     val status: DebtStatus,
+    val usuarioId: Int,
     val penaltyRate: Double = 5.0,       // Penalización por mora (%)
     val creationDate: String = getCurrentDate() // Fecha de creación
 ) {

@@ -6,7 +6,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -18,11 +22,13 @@ import edu.ucne.finanzen.domain.model.Transaction
 import edu.ucne.finanzen.domain.model.TransactionType
 import edu.ucne.finanzen.ui.theme.FinanzenTheme
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTransactionDialog(
+    currentUserId: Int,
     onDismiss: () -> Unit,
     onAdd: (Transaction) -> Unit
 ) {
@@ -56,8 +62,10 @@ fun AddTransactionDialog(
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 FilterChip(
                     selected = type == TransactionType.INCOME,
-                    onClick = { type = TransactionType.INCOME
-                        category = CategoryType.SALARIO},
+                    onClick = {
+                        type = TransactionType.INCOME
+                        category = CategoryType.SALARIO
+                    },
                     label = { Text("Ingreso") },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = Color(0xFF388E3C),
@@ -66,8 +74,10 @@ fun AddTransactionDialog(
                 )
                 FilterChip(
                     selected = type == TransactionType.EXPENSE,
-                    onClick = { type = TransactionType.EXPENSE
-                        category = CategoryType.ALIMENTACION},
+                    onClick = {
+                        type = TransactionType.EXPENSE
+                        category = CategoryType.ALIMENTACION
+                    },
                     label = { Text("Gasto") },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = Color(0xFFD32F2F),
@@ -85,7 +95,6 @@ fun AddTransactionDialog(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Categoría
             Text("Categoría", style = MaterialTheme.typography.bodyMedium)
             val categories = remember(type) {
                 if (type == TransactionType.INCOME) listOf(
@@ -120,7 +129,9 @@ fun AddTransactionDialog(
                         onClick = { category = cat },
                         label = { Text(cat.name) },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = if (type == TransactionType.INCOME) Color(0xFF388E3C) else Color(0xFFD32F2F),
+                            selectedContainerColor = if (type == TransactionType.INCOME) Color(
+                                0xFF388E3C
+                            ) else Color(0xFFD32F2F),
                             selectedLabelColor = Color.White
                         )
                     )
@@ -152,11 +163,16 @@ fun AddTransactionDialog(
                         if (amountDouble > 0) {
                             onAdd(
                                 Transaction(
+                                    transactionId = 0,
                                     type = type,
                                     amount = amountDouble,
                                     category = category,
                                     description = description,
-                                    date = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
+                                    usuarioId = currentUserId,
+                                    date = SimpleDateFormat(
+                                        "yyyy-MM-dd'T'HH:mm:ss",
+                                        Locale.getDefault()
+                                    ).format(Date())
                                 )
                             )
                         }
@@ -168,11 +184,13 @@ fun AddTransactionDialog(
         }
     }
 }
+
 @Preview(showBackground = true)
 @Composable
 private fun AddTransactionDialogPreview() {
     FinanzenTheme {
         AddTransactionDialog(
+            currentUserId = 1,
             onDismiss = {},
             onAdd = {}
         )

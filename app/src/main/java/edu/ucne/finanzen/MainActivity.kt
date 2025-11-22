@@ -30,10 +30,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-// Crear canal de notificaciones
+
         NotificationHelper.createNotificationChannel(this)
 
-        // Programar Worker
+
         val workRequest = PeriodicWorkRequestBuilder<FinanceCheckWorker>(24, TimeUnit.HOURS)
             .build()
 
@@ -43,7 +43,7 @@ class MainActivity : ComponentActivity() {
             workRequest
         )
 
-        // Solicitar permiso en Android 13+
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1001)

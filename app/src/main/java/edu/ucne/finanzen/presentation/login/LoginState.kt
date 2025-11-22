@@ -15,5 +15,7 @@ data class LoginState(
     val passwordInput: String = "",
 
     val isLoggedIn: Boolean = false,
+    val loggedInUserId: Int? = null,
     val loggedInUserName: String? = null
+
 )
