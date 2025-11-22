@@ -6,7 +6,9 @@ data class Transaction(
     val amount: Double,
     val category: CategoryType,
     val description: String,
+    val usuarioId: Int,
     val date: String
+
 )
 
 enum class TransactionType {
