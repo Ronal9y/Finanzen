@@ -9,5 +9,6 @@ data class DashboardData(
     val completionPercentage: Double,
     val debtsCount: Int,
     val totalRemainingDebt: Double,
+    val usuarioId: Int,
     val budgetsCount: Int
 )
