@@ -6,5 +6,6 @@ data class TransactionsState(
     val transactions: List<Transaction> = emptyList(),
     val selectedFilter: String = "Todas",
     val isLoading: Boolean = true,
-    val error: String? = null
+    val error: String? = null,
+    val currentUserId: Int? = null
 )
