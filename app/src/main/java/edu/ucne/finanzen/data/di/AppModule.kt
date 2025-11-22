@@ -2,15 +2,29 @@ package edu.ucne.finanzen.data.di
 
 import android.content.Context
 import androidx.room.Room
-import edu.ucne.finanzen.data.local.database.FinanceDatabase
-import edu.ucne.finanzen.data.local.dao.*
-import edu.ucne.finanzen.data.repository.*
-import edu.ucne.finanzen.domain.repository.*
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import edu.ucne.finanzen.data.local.dao.BudgetDao
+import edu.ucne.finanzen.data.local.dao.DebtDao
+import edu.ucne.finanzen.data.local.dao.GoalDao
+import edu.ucne.finanzen.data.local.dao.TransactionDao
+import edu.ucne.finanzen.data.local.database.FinanceDatabase
+import edu.ucne.finanzen.data.remote.RemoteDataSource
+import edu.ucne.finanzen.data.remote.UsuariosApi
+import edu.ucne.finanzen.data.repository.BudgetRepositoryImpl
+import edu.ucne.finanzen.data.repository.DebtRepositoryImpl
+import edu.ucne.finanzen.data.repository.GoalRepositoryImpl
+import edu.ucne.finanzen.data.repository.TransactionRepositoryImpl
+import edu.ucne.finanzen.data.repository.UsuarioRepositoryImpl
+import edu.ucne.finanzen.domain.repository.BudgetRepository
+import edu.ucne.finanzen.domain.repository.DebtRepository
+import edu.ucne.finanzen.domain.repository.GoalRepository
+import edu.ucne.finanzen.domain.repository.TransactionRepository
+import edu.ucne.finanzen.domain.repository.UsuarioRepository
+import edu.ucne.finanzen.data.local.datastore.UserDataStore
 import javax.inject.Singleton
 
 @Module
@@ -26,58 +40,66 @@ object AppModule {
             "finance_db"
         )
             .fallbackToDestructiveMigration()
-            //.addMigrations()
             .build()
     }
 
-    // DAOs
     @Provides
     @Singleton
-    fun provideTransactionDao(database: FinanceDatabase): TransactionDao {
-        return database.transactionDao()
+    fun provideTransactionDao(database: FinanceDatabase): TransactionDao = database.transactionDao()
+
+    @Provides
+    @Singleton
+    fun provideBudgetDao(database: FinanceDatabase): BudgetDao = database.budgetDao()
+
+    @Provides
+    @Singleton
+    fun provideGoalDao(database: FinanceDatabase): GoalDao = database.goalDao()
+
+    @Provides
+    @Singleton
+    fun provideDebtDao(database: FinanceDatabase): DebtDao = database.debtDao()
+
+    @Provides
+    @Singleton
+    fun provideRemoteDataSource(api: UsuariosApi): RemoteDataSource = RemoteDataSource(api)
+
+    @Provides
+    @Singleton
+    fun provideUserDataStore(@ApplicationContext context: Context): UserDataStore {
+        return UserDataStore(context)
     }
 
     @Provides
     @Singleton
-    fun provideBudgetDao(database: FinanceDatabase): BudgetDao {
-        return database.budgetDao()
-    }
+    fun provideTransactionRepository(
+        dao: TransactionDao,
+        remoteDataSource: RemoteDataSource
+    ): TransactionRepository = TransactionRepositoryImpl(dao, remoteDataSource)
 
     @Provides
     @Singleton
-    fun provideGoalDao(database: FinanceDatabase): GoalDao {
-        return database.goalDao()
-    }
+    fun provideBudgetRepository(
+        dao: BudgetDao,
+        remoteDataSource: RemoteDataSource
+    ): BudgetRepository = BudgetRepositoryImpl(dao, remoteDataSource)
 
     @Provides
     @Singleton
-    fun provideDebtDao(database: FinanceDatabase): DebtDao {
-        return database.debtDao()
-    }
-
-    // Repositories
-    @Provides
-    @Singleton
-    fun provideTransactionRepository(dao: TransactionDao): TransactionRepository {
-        return TransactionRepositoryImpl(dao)
-    }
+    fun provideGoalRepository(
+        dao: GoalDao,
+        remoteDataSource: RemoteDataSource
+    ): GoalRepository = GoalRepositoryImpl(dao, remoteDataSource)
 
     @Provides
     @Singleton
-    fun provideBudgetRepository(dao: BudgetDao): BudgetRepository {
-        return BudgetRepositoryImpl(dao)
-    }
+    fun provideDebtRepository(
+        dao: DebtDao,
+        remoteDataSource: RemoteDataSource
+    ): DebtRepository = DebtRepositoryImpl(dao, remoteDataSource)
 
     @Provides
     @Singleton
-    fun provideGoalRepository(dao: GoalDao): GoalRepository {
-        return GoalRepositoryImpl(dao)
-    }
-
-    @Provides
-    @Singleton
-    fun provideDebtRepository(dao: DebtDao): DebtRepository {
-        return DebtRepositoryImpl(dao)
-    }
-
+    fun provideUsuarioRepository(
+        remoteDataSource: RemoteDataSource
+    ): UsuarioRepository = UsuarioRepositoryImpl(remoteDataSource)
 }

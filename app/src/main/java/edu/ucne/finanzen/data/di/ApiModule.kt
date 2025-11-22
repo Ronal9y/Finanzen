@@ -14,9 +14,6 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Named
 import javax.inject.Singleton
 import edu.ucne.finanzen.data.remote.UsuariosApi
-import edu.ucne.finanzen.data.remote.RemoteDataSource
-import edu.ucne.finanzen.data.repository.UsuarioRepositoryImpl
-import edu.ucne.finanzen.domain.repository.UsuarioRepository
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -24,7 +21,7 @@ object ApiModule {
 
     @Provides
     @Named("baseUrl")
-    fun provideBaseUrl(): String = "https://gestionhuacalesapi.azurewebsites.net/"
+    fun provideBaseUrl(): String = "https://gestionprestamosapi.somee.com/"
 
     @Provides
     @Singleton
@@ -66,14 +63,4 @@ object ApiModule {
     fun provideUsuariosApi(retrofit: Retrofit): UsuariosApi =
         retrofit.create(UsuariosApi::class.java)
 
-    @Provides
-    @Singleton
-    fun provideUsuarioRemoteDataSource(api: UsuariosApi): RemoteDataSource =
-        RemoteDataSource(api)
-
-    @Provides
-    @Singleton
-    fun provideUsuariosRepository(
-        impl: UsuarioRepositoryImpl
-    ): UsuarioRepository = impl
 }
