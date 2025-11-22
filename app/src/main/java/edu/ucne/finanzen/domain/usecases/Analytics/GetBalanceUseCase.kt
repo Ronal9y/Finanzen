@@ -6,5 +6,6 @@ import javax.inject.Inject
 class GetBalanceUseCase @Inject constructor(
     private val repository: TransactionRepository
 ) {
-    suspend operator fun invoke(): Double = repository.getBalance()
+    suspend operator fun invoke(usuarioId: Int): Double =
+        repository.getBalance(usuarioId)
 }
