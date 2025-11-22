@@ -144,4 +144,8 @@ dependencies {
     kspTest("com.google.dagger:hilt-android-compiler:2.48")
     androidTestImplementation("com.google.dagger:hilt-android-testing:2.48")
     kspAndroidTest("com.google.dagger:hilt-android-compiler:2.48")
+
+    // DataStore Preferences
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("androidx.datastore:datastore-core:1.1.1")
 }
