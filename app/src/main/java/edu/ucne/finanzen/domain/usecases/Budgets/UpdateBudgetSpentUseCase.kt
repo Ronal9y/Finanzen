@@ -10,20 +10,16 @@ class UpdateBudgetSpentUseCase @Inject constructor(
     private val budgetRepo: BudgetRepository,
     private val transactionRepo: TransactionRepository
 ) {
-    suspend operator fun invoke() {
-        // 1. Obtener todos los presupuestos activos
-        val budgets = budgetRepo.getAllBudgets().first()
+    suspend operator fun invoke(usuarioId: Int) {
+        val budgets = budgetRepo.getAllBudgets(usuarioId).first()
 
-        // 2. Obtener todos los gastos
-        val expenses = transactionRepo.getAllTransactions()
+        val expenses = transactionRepo.getAllTransactions(usuarioId)
             .first()
             .filter { it.type == TransactionType.EXPENSE }
 
-        // 3. Acumular por categoría
         val spentByCategory = expenses.groupBy { it.category }
             .mapValues { (_, list) -> list.sumOf { it.amount } }
 
-        // 4. Actualizar cada presupuesto
         budgets.forEach { budget ->
             val spent = spentByCategory[budget.category] ?: 0.0
             val updated = budget.copy(spent = spent)
