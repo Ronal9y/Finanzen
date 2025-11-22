@@ -1,16 +1,18 @@
 package edu.ucne.finanzen.domain.usecases.Dashboard
 
 import edu.ucne.finanzen.domain.model.DashboardData
-import  edu.ucne.finanzen.domain.usecases.Analytics.*
-import  edu.ucne.finanzen.domain.usecases.Budgets.GetBudgetsCountUseCase
-import  edu.ucne.finanzen.domain.usecases.Debts.GetDebtsCountUseCase
-import  edu.ucne.finanzen.domain.usecases.Debts.GetTotalRemainingDebtUseCase
-import  edu.ucne.finanzen.domain.usecases.Goals.GetGoalsCountUseCase
-import  edu.ucne.finanzen.domain.usecases.Goals.GetTotalCompletionPercentageUseCase
-import  edu.ucne.finanzen.domain.usecases.Transaction.GetTransactionsUseCase
+import edu.ucne.finanzen.domain.usecases.Analytics.GetBalanceUseCase
+import edu.ucne.finanzen.domain.usecases.Analytics.GetTotalExpensesUseCase
+import edu.ucne.finanzen.domain.usecases.Analytics.GetTotalIncomeUseCase
+import edu.ucne.finanzen.domain.usecases.Budgets.GetBudgetsCountUseCase
+import edu.ucne.finanzen.domain.usecases.Debts.GetDebtsCountUseCase
+import edu.ucne.finanzen.domain.usecases.Debts.GetTotalRemainingDebtUseCase
+import edu.ucne.finanzen.domain.usecases.Goals.GetGoalsCountUseCase
+import edu.ucne.finanzen.domain.usecases.Goals.GetTotalCompletionPercentageUseCase
+import edu.ucne.finanzen.domain.usecases.Transaction.GetTransactionsUseCase
+import javax.inject.Inject
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import javax.inject.Inject
 
 class GetDashboardDataUseCase @Inject constructor(
     private val getTransactions: GetTransactionsUseCase,
@@ -23,16 +25,16 @@ class GetDashboardDataUseCase @Inject constructor(
     private val getTotalRemainingDebt: GetTotalRemainingDebtUseCase,
     private val getBudgetsCount: GetBudgetsCountUseCase
 ) {
-    suspend operator fun invoke(): DashboardData = coroutineScope {
-        val transactionsAsync = async { getTransactions() }
-        val totalIncomeAsync = async { getTotalIncome() }
-        val totalExpensesAsync = async { getTotalExpenses() }
-        val balanceAsync = async { getBalance() }
-        val goalsCountAsync = async { getGoalsCount() }
-        val completionPercentageAsync = async { getTotalCompletionPercentage() }
-        val debtsCountAsync = async { getDebtsCount() }
-        val totalRemainingDebtAsync = async { getTotalRemainingDebt() }
-        val budgetsCountAsync = async { getBudgetsCount() }
+    suspend operator fun invoke(usuarioId: Int): DashboardData = coroutineScope {
+        val transactionsAsync = async { getTransactions(usuarioId) }
+        val totalIncomeAsync = async { getTotalIncome(usuarioId) }
+        val totalExpensesAsync = async { getTotalExpenses(usuarioId) }
+        val balanceAsync = async { getBalance(usuarioId) }
+        val goalsCountAsync = async { getGoalsCount(usuarioId) }
+        val completionPercentageAsync = async { getTotalCompletionPercentage(usuarioId) }
+        val debtsCountAsync = async { getDebtsCount(usuarioId) }
+        val totalRemainingDebtAsync = async { getTotalRemainingDebt(usuarioId) }
+        val budgetsCountAsync = async { getBudgetsCount(usuarioId) }
 
         DashboardData(
             transactions = transactionsAsync.await(),
@@ -43,6 +45,7 @@ class GetDashboardDataUseCase @Inject constructor(
             completionPercentage = completionPercentageAsync.await(),
             debtsCount = debtsCountAsync.await(),
             totalRemainingDebt = totalRemainingDebtAsync.await(),
+            usuarioId = usuarioId,
             budgetsCount = budgetsCountAsync.await()
         )
     }
