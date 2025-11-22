@@ -6,5 +6,6 @@ import javax.inject.Inject
 class GetGoalsCountUseCase @Inject constructor(
     private val repository: GoalRepository
 ) {
-    suspend operator fun invoke(): Int = repository.getGoalsCount()
+    suspend operator fun invoke(usuarioId: Int): Int =
+        repository.getGoalsCount(usuarioId)
 }
