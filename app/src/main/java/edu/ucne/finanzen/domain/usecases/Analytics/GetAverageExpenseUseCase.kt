@@ -6,5 +6,5 @@ import javax.inject.Inject
 class GetAverageExpenseUseCase @Inject constructor(
     private val repository: TransactionRepository
 ) {
-    suspend operator fun invoke(): Double = repository.getAverageExpense()
+    suspend operator fun invoke(usuarioId: Int): Double = repository.getAverageExpense()
 }
