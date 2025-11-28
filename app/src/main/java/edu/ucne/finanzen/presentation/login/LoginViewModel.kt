@@ -130,45 +130,34 @@ open class LoginViewModel @Inject constructor(
                 return@launch
             }
 
-            when (usuariosUseCase.guardarUsuario(usuarioId, usuario)) {
-                is Resource.Success<*> -> {
-                    val usuariosResult = usuariosUseCase.obtenerUsuarios()
-                    if (usuariosResult is Resource.Success) {
-                        val usuariosList = usuariosResult.data ?: emptyList()
-                        val creado = usuariosList.firstOrNull {
-                            it.userName.equals(usuario.userName, ignoreCase = true) &&
-                                    it.password == usuario.password
-                        }
+            val resultado = usuariosUseCase.guardarUsuario(usuarioId, usuario)
 
-                        if (creado != null) {
-                            userDataStore.saveUserId(creado.usuarioId)
+            if (resultado.isSuccess) {
 
-                            _state.value = _state.value.copy(
-                                isLoading = false,
-                                isDialogOpen = false,
-                                isEditing = false,
-                                usuarioId = null,
-                                isLoggedIn = true,
-                                loggedInUserName = creado.userName,
-                                loggedInUserId = creado.usuarioId
-                            )
-                        } else {
-                            _state.value = _state.value.copy(
-                                isLoading = false,
-                                error = "Usuario guardado, pero no se pudo recuperar"
-                            )
-                        }
-                    }
-                }
-                is Resource.Error<*> -> {
-                    _state.value = _state.value.copy(
-                        isLoading = false,
-                        error = "Error al guardar usuario"
-                    )
-                }
-                is Resource.Loading<*> -> {
-                    _state.value = _state.value.copy(isLoading = true)
-                }
+                _state.value = _state.value.copy(
+                    isDialogOpen = false,
+                    isEditing = false,
+                    usuarioId = null,
+                    isLoading = false
+                )
+
+                val newId = usuario.usuarioId
+                userDataStore.saveUserId(newId)
+
+                loadUsuarios()
+
+                _state.value = _state.value.copy(
+                    isLoggedIn = true,
+                    loggedInUserName = usuario.userName,
+                    loggedInUserId = newId
+                )
+            } else {
+                val errorMsg = resultado.exceptionOrNull()?.message ?: "Error al guardar usuario"
+                _state.value = _state.value.copy(
+                    isDialogOpen = false,
+                    isLoading = false,
+                    error = errorMsg
+                )
             }
         }
     }
@@ -215,4 +204,11 @@ open class LoginViewModel @Inject constructor(
             }
         }
     }
+
+    fun logout() {
+        viewModelScope.launch {
+            userDataStore.clearUserId()   // ← importante
+        }
+    }
+
 }
