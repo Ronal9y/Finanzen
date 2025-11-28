@@ -7,5 +7,5 @@ import javax.inject.Inject
 class InsertTransactionUseCase @Inject constructor(
     private val repository: TransactionRepository
 ) {
-    suspend operator fun invoke(transaction: Transaction) = repository.insertTransaction(transaction)
+    suspend operator fun invoke(transaction: Transaction) = repository.upsertTransaction(transaction)
 }
