@@ -23,11 +23,28 @@ class BudgetRepositoryImpl @Inject constructor(
     override suspend fun getBudgetById(id: Int): Budget? =
         budgetDao.getById(id)?.asExternalModel()
 
-    override suspend fun upsertBudget(budget: Budget) {
+    override suspend fun insertBudget(budget: Budget) {
+        val result = remoteDataSource.postBudget(budget.toBudgetRequest())
+        when (result) {
+            is Resource.Success -> {
+                budgetDao.upsert(budget.toEntity())
+            }
+            is Resource.Error -> {
+                budgetDao.upsert(budget.toEntity())
+            }
+            is Resource.Loading -> {}
+        }
+    }
+
+    override suspend fun updateBudget(budget: Budget) {
         val result = remoteDataSource.putBudget(budget.budgetId, budget.toBudgetRequest())
         when (result) {
-            is Resource.Success -> budgetDao.upsert(budget.toEntity())
-            is Resource.Error  -> budgetDao.upsert(budget.toEntity())
+            is Resource.Success -> {
+                budgetDao.upsert(budget.toEntity())
+            }
+            is Resource.Error -> {
+                budgetDao.upsert(budget.toEntity())
+            }
             is Resource.Loading -> {}
         }
     }
