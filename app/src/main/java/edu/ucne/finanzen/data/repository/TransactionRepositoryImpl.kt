@@ -6,9 +6,11 @@ import edu.ucne.finanzen.data.mapper.toEntity
 import edu.ucne.finanzen.data.mapper.toRequest
 import edu.ucne.finanzen.data.remote.RemoteDataSource
 import edu.ucne.finanzen.data.remote.Resource
+import edu.ucne.finanzen.data.remote.dto.TransactionResponse
 import edu.ucne.finanzen.domain.model.Transaction
 import edu.ucne.finanzen.domain.model.TransactionType
 import edu.ucne.finanzen.domain.repository.TransactionRepository
+import edu.ucne.finanzen.common.FinanceEvents
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -41,39 +43,37 @@ class TransactionRepositoryImpl @Inject constructor(
     override suspend fun getTransactionById(id: Int): Transaction? =
         transactionDao.getById(id)?.asExternalModel()
 
-    override suspend fun insertTransaction(transaction: Transaction) {
-        val result = remoteDataSource.postTransaction(transaction.toRequest())
-        when (result) {
-            is Resource.Success -> transactionDao.upsert(transaction.toEntity())
-            is Resource.Error -> {
-                transactionDao.upsert(transaction.toEntity())
-                throw Exception("Error de API: ${result.message}")
-            }
-            is Resource.Loading -> {}
-        }
-    }
+    override suspend fun upsertTransaction(transaction: Transaction) {
+        val result: Resource<TransactionResponse> = (if (transaction.transactionId == 0) {
+            remoteDataSource.postTransaction(transaction.toRequest())
+        } else {
+            remoteDataSource.putTransaction(transaction.transactionId, transaction.toRequest())
+        }) as Resource<TransactionResponse>
 
-    override suspend fun updateTransaction(transaction: Transaction) {
-        val result = remoteDataSource.putTransaction(
-            transaction.transactionId,
-            transaction.toRequest()
-        )
         when (result) {
-            is Resource.Success -> transactionDao.upsert(transaction.toEntity())
-            is Resource.Error -> {
-                transactionDao.upsert(transaction.toEntity())
-                throw Exception("Error de API: ${result.message}")
+            is Resource.Success<TransactionResponse> -> {
+                val apiId = result.data?.transactionId ?: transaction.transactionId
+                transactionDao.upsert(transaction.copy(transactionId = apiId).toEntity())
+                FinanceEvents.notifyChange() // <-- Notifica el cambio
             }
-            is Resource.Loading -> {}
+            is Resource.Error<TransactionResponse> -> {
+                transactionDao.upsert(transaction.toEntity())
+                FinanceEvents.notifyChange() // <-- Notifica el cambio
+            }
+            is Resource.Loading<TransactionResponse> -> {}
         }
     }
 
     override suspend fun deleteTransaction(transaction: Transaction) {
         val result = remoteDataSource.deleteTransaction(transaction.transactionId)
         when (result) {
-            is Resource.Success -> transactionDao.delete(transaction.toEntity())
+            is Resource.Success -> {
+                transactionDao.delete(transaction.toEntity())
+                FinanceEvents.notifyChange(shouldAlert = false) // <-- Notifica el cambio
+            }
             is Resource.Error -> {
                 transactionDao.delete(transaction.toEntity())
+                FinanceEvents.notifyChange(shouldAlert = false) // <-- Notifica el cambio
                 throw Exception("Error de API: ${result.message}")
             }
             is Resource.Loading -> {}
@@ -83,9 +83,13 @@ class TransactionRepositoryImpl @Inject constructor(
     override suspend fun deleteTransactionById(id: Int) {
         val result = remoteDataSource.deleteTransaction(id)
         when (result) {
-            is Resource.Success -> transactionDao.deleteById(id)
+            is Resource.Success -> {
+                transactionDao.deleteById(id)
+                FinanceEvents.notifyChange(shouldAlert = false) // <-- Notifica el cambio
+            }
             is Resource.Error -> {
                 transactionDao.deleteById(id)
+                FinanceEvents.notifyChange(shouldAlert = false) // <-- Notifica el cambio
                 throw Exception("Error de API: ${result.message}")
             }
             is Resource.Loading -> {}
