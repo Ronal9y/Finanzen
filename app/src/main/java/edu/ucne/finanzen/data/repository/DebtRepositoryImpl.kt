@@ -8,7 +8,6 @@ import edu.ucne.finanzen.data.remote.RemoteDataSource
 import edu.ucne.finanzen.data.remote.Resource
 import edu.ucne.finanzen.domain.model.Debt
 import edu.ucne.finanzen.domain.model.DebtStatus
-import edu.ucne.finanzen.data.remote.dto.DebtResponse
 import edu.ucne.finanzen.domain.repository.DebtRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -29,24 +28,45 @@ class DebtRepositoryImpl @Inject constructor(
     override suspend fun getDebtById(id: Int): Debt? =
         debtDao.getById(id)?.asExternalModel()
 
-    override suspend fun upsertDebt(debt: Debt) {
-        val result: Resource<DebtResponse> = (if (debt.debtId == 0) {
-            remoteDataSource.postDebt(debt.toDebtRequest())
-        } else {
-            remoteDataSource.putDebt(debt.debtId, debt.toDebtRequest())
-        }) as Resource<DebtResponse>
+    override suspend fun insertDebt(debt: Debt) {
+        println("DEBUG: Repositorio - Insertando deuda: ${debt.name}")
 
+
+        val result = remoteDataSource.postDebt(debt.toDebtRequest())
         when (result) {
-            is Resource.Success<DebtResponse> -> {
-                // ← clave: actualiza el ID local con el que devuelve la API
-                val apiId = result.data?.debtId ?: debt.debtId
-                debtDao.upsert(debt.copy(debtId = apiId).toEntity())
+            is Resource.Success -> {
+                println("DEBUG: Repositorio - API éxito, ID de API: ${result.data?.debtId}")
+
+                val debtWithApiId = result.data?.let { apiDebt ->
+                    debt.copy(debtId = apiDebt.debtId)
+                } ?: debt
+
+                debtDao.upsert(debtWithApiId.toEntity())
+                println("DEBUG: Repositorio - Guardado local con ID: ${debtWithApiId.debtId}")
             }
-            is Resource.Error<DebtResponse> -> {
-                // offline: guardamos con el ID que ya tenía
+            is Resource.Error -> {
+                println("DEBUG: Repositorio - Error de API, guardando localmente con ID temporal")
+                debtDao.upsert(debt.toEntity())
+                throw Exception("Error de sincronización: ${result.message}")
+            }
+            is Resource.Loading -> {}
+        }
+    }
+
+    override suspend fun updateDebt(debt: Debt) {
+        println("DEBUG: Repositorio - Actualizando deuda ID local: ${debt.debtId}")
+        val result = remoteDataSource.putDebt(debt.debtId, debt.toDebtRequest())
+        when (result) {
+            is Resource.Success -> {
+                println("DEBUG: Repositorio - API éxito, actualizando localmente")
                 debtDao.upsert(debt.toEntity())
             }
-            is Resource.Loading<DebtResponse> -> {}
+            is Resource.Error -> {
+                println("DEBUG: Repositorio - Error de API, actualizando localmente igual")
+                debtDao.upsert(debt.toEntity())
+                throw Exception("Error de sincronización: ${result.message}")
+            }
+            is Resource.Loading -> {}
         }
     }
 
@@ -67,12 +87,36 @@ class DebtRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteDebtById(id: Int) {
-        val localDebt = debtDao.getById(id) ?: return
-        val result = remoteDataSource.deleteDebt(localDebt.debtId) // ← ID real
+        println("DEBUG: Repositorio - Iniciando eliminación de deuda ID local: $id")
+
+        // PRIMERO obtener la deuda local para saber el ID correcto
+        val localDebt = debtDao.getById(id)
+        println("DEBUG: Repositorio - Deuda local encontrada: $localDebt")
+
+        if (localDebt == null) {
+            println("DEBUG: Repositorio - No se encontró deuda local con ID: $id")
+            throw Exception("Deuda no encontrada localmente")
+        }
+
+        val apiId = localDebt.debtId
+        println("DEBUG: Repositorio - Usando ID de API: $apiId para eliminar")
+
+        val result = remoteDataSource.deleteDebt(apiId)
+        println("DEBUG: Repositorio - Respuesta de API: $result")
+
         when (result) {
-            is Resource.Success -> debtDao.deleteById(id)
-            is Resource.Error -> debtDao.deleteById(id) // también en local
-            is Resource.Loading -> {}
+            is Resource.Success -> {
+                println("DEBUG: Repositorio - API éxito, eliminando localmente...")
+                debtDao.deleteById(id)
+                println("DEBUG: Repositorio - Eliminación local completada")
+            }
+            is Resource.Error -> {
+                println("DEBUG: Repositorio - Error de API: ${result.message}")
+                throw Exception("Error de sincronización: ${result.message}")
+            }
+            is Resource.Loading -> {
+                println("DEBUG: Repositorio - Cargando...")
+            }
         }
     }
 
