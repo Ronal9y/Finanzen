@@ -85,11 +85,11 @@ class TransactionRepositoryImpl @Inject constructor(
         when (result) {
             is Resource.Success -> {
                 transactionDao.deleteById(id)
-                FinanceEvents.notifyChange(shouldAlert = false) // <-- Notifica el cambio
+                FinanceEvents.notifyChange(shouldAlert = false)
             }
             is Resource.Error -> {
                 transactionDao.deleteById(id)
-                FinanceEvents.notifyChange(shouldAlert = false) // <-- Notifica el cambio
+                FinanceEvents.notifyChange(shouldAlert = false)
                 throw Exception("Error de API: ${result.message}")
             }
             is Resource.Loading -> {}
