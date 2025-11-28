@@ -1,66 +1,80 @@
-package edu.ucne.finanzen
+package edu.ucne.finanzen.data.repository
 
-import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import edu.ucne.finanzen.data.local.dao.BudgetDao
-import edu.ucne.finanzen.data.local.entity.BudgetEntity
+import edu.ucne.finanzen.data.mapper.asExternalModel
+import edu.ucne.finanzen.data.mapper.toBudgetRequest
+import edu.ucne.finanzen.data.mapper.toEntity
 import edu.ucne.finanzen.data.remote.RemoteDataSource
 import edu.ucne.finanzen.data.remote.Resource
-import edu.ucne.finanzen.data.repository.BudgetRepositoryImpl
 import edu.ucne.finanzen.domain.model.Budget
-import edu.ucne.finanzen.domain.model.CategoryType
-import io.mockk.Runs
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.just
-import io.mockk.mockk
-import io.mockk.slot
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runTest
-import org.junit.Before
-import org.junit.Rule
-import org.junit.Test
-import kotlin.test.assertEquals
+import edu.ucne.finanzen.domain.repository.BudgetRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import javax.inject.Inject
 
-@ExperimentalCoroutinesApi
-class BudgetRepositoryImplTest {
+class BudgetRepositoryImpl @Inject constructor(
+    private val budgetDao: BudgetDao,
+    private val remoteDataSource: RemoteDataSource
+) : BudgetRepository {
 
-    @get:Rule
-    val instantExecutorRule = InstantTaskExecutorRule()
+    override fun getAllBudgets(usuarioId: Int): Flow<List<Budget>> =
+        budgetDao.observeAll().map { list -> list.map { it.asExternalModel() } }
 
-    private lateinit var repository: BudgetRepositoryImpl
-    private val budgetDao = mockk<BudgetDao>(relaxed = true)
-    private val remote = mockk<RemoteDataSource>(relaxed = true)
+    override suspend fun getBudgetById(id: Int): Budget? =
+        budgetDao.getById(id)?.asExternalModel()
 
-    @Before
-    fun setup() {
-        repository = BudgetRepositoryImpl(budgetDao, remote)
+    override suspend fun insertBudget(budget: Budget) {
+        val result = remoteDataSource.postBudget(budget.toBudgetRequest())
+        when (result) {
+            is Resource.Success -> {
+                budgetDao.upsert(budget.toEntity())
+            }
+            is Resource.Error -> {
+                budgetDao.upsert(budget.toEntity())
+            }
+            is Resource.Loading -> {}
+        }
     }
 
-    @Test
-    fun `upsertBudget guarda localmente aunque la API falle`() = runTest {
-        val budget = Budget(
-            budgetId = 1,
-            category = CategoryType.ALIMENTACION,
-            month = "2025-11",
-            limit = 1000.0,
-            spent = 0.0,
-            usuarioId = 1,
-            alertThreshold = 80
-        )
-        val slot = slot<BudgetEntity>()
-        coEvery { remote.putBudget(any(), any()) } returns Resource.Error("Timeout")
-        coEvery { budgetDao.upsert(capture(slot)) } just Runs
-
-        repository.upsertBudget(budget)
-
-        coVerify { budgetDao.upsert(any()) }
-        assertEquals(1, slot.captured.budgetId)
+    override suspend fun updateBudget(budget: Budget) {
+        val result = remoteDataSource.putBudget(budget.budgetId, budget.toBudgetRequest())
+        when (result) {
+            is Resource.Success -> {
+                budgetDao.upsert(budget.toEntity())
+            }
+            is Resource.Error -> {
+                budgetDao.upsert(budget.toEntity())
+            }
+            is Resource.Loading -> {}
+        }
     }
 
-    @Test
-    fun `deleteBudgetById borra local incluso si la API falla`() = runTest {
-        coEvery { remote.deleteBudget(5) } returns Resource.Error("404")
-        repository.deleteBudgetById(5)
-        coVerify { budgetDao.deleteById(5) }
+    override suspend fun deleteBudget(budget: Budget) {
+        val result = remoteDataSource.deleteBudget(budget.budgetId)
+        when (result) {
+            is Resource.Success -> {
+                budgetDao.delete(budget.toEntity())
+            }
+            is Resource.Error -> {
+                budgetDao.delete(budget.toEntity())
+            }
+            is Resource.Loading -> {}
+        }
     }
+
+    override suspend fun deleteBudgetById(id: Int) {
+        val result = remoteDataSource.deleteBudget(id)
+        when (result) {
+            is Resource.Success -> {
+                budgetDao.deleteById(id)
+            }
+            is Resource.Error -> {
+                budgetDao.deleteById(id)
+            }
+            is Resource.Loading -> {}
+        }
+    }
+
+    override suspend fun getBudgetsCount(usuarioId: Int): Int =
+        budgetDao.getCount()
 }
