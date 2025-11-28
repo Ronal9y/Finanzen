@@ -11,17 +11,19 @@ import edu.ucne.finanzen.presentation.dashboard.DashboardScreen
 import edu.ucne.finanzen.presentation.debts.DebtListScreen
 import edu.ucne.finanzen.presentation.goals.GoalsScreen
 import edu.ucne.finanzen.presentation.login.LoginScreen
+import edu.ucne.finanzen.presentation.login.VerificacionScreen
 import edu.ucne.finanzen.presentation.login.WelcomeScreen
 import edu.ucne.finanzen.presentation.transactions.TransactionsScreen
 
 @Composable
 fun FinanceNavHost(
     navController: NavHostController,
+    startDestination: Any,
     modifier: Modifier = Modifier
 ) {
     NavHost(
         navController = navController,
-        startDestination = Screen.Welcome,
+        startDestination = startDestination,
         modifier = modifier
     ) {
 
@@ -40,13 +42,26 @@ fun FinanceNavHost(
         composable<Screen.Login> {
             LoginScreen(
                 onLoginSuccess = {
-                    navController.navigate(Screen.Dashboard) {
+                    navController.navigate(Screen.Verificacion) {
                         popUpTo(Screen.Welcome) { inclusive = true }
                     }
                 }
             )
         }
-
+        composable<Screen.Verificacion> {
+            VerificacionScreen(
+                onLogout = {
+                    navController.navigate(Screen.Welcome) {
+                        popUpTo(Screen.Verificacion) { inclusive = true }
+                    }
+                },
+                onContinue = {
+                    navController.navigate(Screen.Dashboard) {
+                        popUpTo(Screen.Verificacion) { inclusive = true }
+                    }
+                }
+            )
+        }
         composable<Screen.Dashboard> {
             DashboardScreen(
                 onAddTransaction = {  },
@@ -82,7 +97,12 @@ fun FinanceNavHost(
         }
         composable<Screen.Analysis> {
             AnalysisScreen(
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onLogout = {
+                    navController.navigate(Screen.Welcome) {
+                        popUpTo(Screen.Dashboard) { inclusive = true }
+                    }
+                }
             )
         }
     }

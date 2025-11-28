@@ -80,7 +80,7 @@ fun TransactionListItem(
                     )
                 }
                 Text(
-                    transaction.date,
+                    transaction.date.take(10),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

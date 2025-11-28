@@ -90,4 +90,10 @@ class AnalysisViewModel @Inject constructor(
             }
         }
     }
+
+    fun logout() {
+        viewModelScope.launch {
+            userDataStore.clearUserId()
+        }
+    }
 }

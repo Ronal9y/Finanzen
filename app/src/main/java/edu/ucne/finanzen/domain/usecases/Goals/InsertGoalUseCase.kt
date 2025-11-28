@@ -7,5 +7,5 @@ import javax.inject.Inject
 class InsertGoalUseCase @Inject constructor(
     private val repository: GoalRepository
 ) {
-    suspend operator fun invoke(goal: Goal) = repository.insertGoal(goal)
+    suspend operator fun invoke(goal: Goal) = repository.upsertGoal(goal)
 }

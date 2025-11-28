@@ -79,14 +79,6 @@ fun WelcomeScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Button(
-                onClick = onStartWithoutAccount,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-            ) {
-                Text("Empezar", style = MaterialTheme.typography.bodyLarge)
-            }
 
             OutlinedButton(
                 onClick = onGoToLogin,

@@ -7,8 +7,7 @@ interface TransactionRepository {
     fun getAllTransactions(usuarioId: Int): Flow<List<Transaction>>
     fun getTransactionsByType(usuarioId: Int, type: String): Flow<List<Transaction>>
     suspend fun getTransactionById(id: Int): Transaction?
-    suspend fun insertTransaction(transaction: Transaction)
-    suspend fun updateTransaction(transaction: Transaction)
+    suspend fun upsertTransaction(transaction: Transaction)
     suspend fun deleteTransaction(transaction: Transaction)
     suspend fun deleteTransactionById(id: Int)
     suspend fun getTotalIncome(usuarioId: Int): Double

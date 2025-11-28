@@ -96,7 +96,7 @@ fun GoalListItem(
                         )
                     }
                     Text(
-                        "Meta: ${goal.deadline}",
+                        "Meta: ${goal.deadline.take(10)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
