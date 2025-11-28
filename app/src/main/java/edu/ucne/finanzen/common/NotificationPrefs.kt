@@ -34,4 +34,7 @@ class NotificationPrefs @Inject constructor(
     fun markDebtNotifiedToday(id: Int) {
         prefs.edit().putString("debt_$id", LocalDate.now().toString()).apply()
     }
+
+    fun resetBudgetNotified(id: Int) = prefs.edit().remove("budget_$id").apply()
+    fun resetDebtNotified(id: Int) = prefs.edit().remove("debt_$id").apply()
 }
