@@ -337,7 +337,7 @@ fun DeudaCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = deuda.dueDate,
+                        text = deuda.dueDate.take(10),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
