@@ -23,7 +23,7 @@ class UpdateBudgetSpentUseCase @Inject constructor(
         budgets.forEach { budget ->
             val spent = spentByCategory[budget.category] ?: 0.0
             val updated = budget.copy(spent = spent)
-            budgetRepo.upsertBudget(updated)
+            budgetRepo.updateBudget(updated)
         }
     }
 }

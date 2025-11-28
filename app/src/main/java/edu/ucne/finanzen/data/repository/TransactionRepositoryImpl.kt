@@ -21,6 +21,7 @@ class TransactionRepositoryImpl @Inject constructor(
     private val remoteDataSource: RemoteDataSource
 ) : TransactionRepository {
 
+    /* ----------  QUERIES (sin cambios) ---------- */
     override fun getAllTransactions(usuarioId: Int): Flow<List<Transaction>> =
         transactionDao.observeAll()
             .map { list ->
@@ -29,10 +30,7 @@ class TransactionRepositoryImpl @Inject constructor(
                     .filter { it.usuarioId == usuarioId }
             }
 
-    override fun getTransactionsByType(
-        usuarioId: Int,
-        type: String
-    ): Flow<List<Transaction>> =
+    override fun getTransactionsByType(usuarioId: Int, type: String): Flow<List<Transaction>> =
         transactionDao.observeByType(type)
             .map { list ->
                 list
@@ -43,24 +41,39 @@ class TransactionRepositoryImpl @Inject constructor(
     override suspend fun getTransactionById(id: Int): Transaction? =
         transactionDao.getById(id)?.asExternalModel()
 
-    override suspend fun upsertTransaction(transaction: Transaction) {
-        val result: Resource<TransactionResponse> = (if (transaction.transactionId == 0) {
-            remoteDataSource.postTransaction(transaction.toRequest())
-        } else {
-            remoteDataSource.putTransaction(transaction.transactionId, transaction.toRequest())
-        }) as Resource<TransactionResponse>
-
+    /* ----------  INSERT  ---------- */
+    override suspend fun insertTransaction(transaction: Transaction) {
+        val result: Resource<TransactionResponse> = remoteDataSource.postTransaction(transaction.toRequest())
         when (result) {
-            is Resource.Success<TransactionResponse> -> {
-                val apiId = result.data?.transactionId ?: transaction.transactionId
+            is Resource.Success -> {
+                val apiId = result.data?.transactionId ?: 0
+
                 transactionDao.upsert(transaction.copy(transactionId = apiId).toEntity())
-                FinanceEvents.notifyChange() // <-- Notifica el cambio
+                FinanceEvents.notifyChange()
             }
-            is Resource.Error<TransactionResponse> -> {
+            is Resource.Error -> {
+
                 transactionDao.upsert(transaction.toEntity())
-                FinanceEvents.notifyChange() // <-- Notifica el cambio
+                FinanceEvents.notifyChange()
             }
-            is Resource.Loading<TransactionResponse> -> {}
+            is Resource.Loading -> {}
+        }
+    }
+
+    override suspend fun updateTransaction(transaction: Transaction) {
+        val result: Resource<Unit> =
+            remoteDataSource.putTransaction(transaction.transactionId, transaction.toRequest())
+        when (result) {
+            is Resource.Success -> {
+
+                transactionDao.upsert(transaction.toEntity())
+                FinanceEvents.notifyChange()
+            }
+            is Resource.Error -> {
+                transactionDao.upsert(transaction.toEntity())
+                FinanceEvents.notifyChange()
+            }
+            is Resource.Loading -> {}
         }
     }
 
@@ -69,11 +82,11 @@ class TransactionRepositoryImpl @Inject constructor(
         when (result) {
             is Resource.Success -> {
                 transactionDao.delete(transaction.toEntity())
-                FinanceEvents.notifyChange(shouldAlert = false) // <-- Notifica el cambio
+                FinanceEvents.notifyChange(shouldAlert = false)
             }
             is Resource.Error -> {
                 transactionDao.delete(transaction.toEntity())
-                FinanceEvents.notifyChange(shouldAlert = false) // <-- Notifica el cambio
+                FinanceEvents.notifyChange(shouldAlert = false)
                 throw Exception("Error de API: ${result.message}")
             }
             is Resource.Loading -> {}
@@ -95,7 +108,6 @@ class TransactionRepositoryImpl @Inject constructor(
             is Resource.Loading -> {}
         }
     }
-
     private suspend fun getUserTransactionsOnce(usuarioId: Int): List<Transaction> {
         val entities = transactionDao.observeAll().first()
         return entities
@@ -105,16 +117,12 @@ class TransactionRepositoryImpl @Inject constructor(
 
     override suspend fun getTotalIncome(usuarioId: Int): Double {
         val userTx = getUserTransactionsOnce(usuarioId)
-        return userTx
-            .filter { it.type == TransactionType.INCOME }
-            .sumOf { it.amount }
+        return userTx.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
     }
 
     override suspend fun getTotalExpenses(usuarioId: Int): Double {
         val userTx = getUserTransactionsOnce(usuarioId)
-        return userTx
-            .filter { it.type == TransactionType.EXPENSE }
-            .sumOf { it.amount }
+        return userTx.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
     }
 
     override suspend fun getBalance(usuarioId: Int): Double =
@@ -130,16 +138,12 @@ class TransactionRepositoryImpl @Inject constructor(
         val entities = transactionDao.observeAll().first()
         val tx = entities.map { it.asExternalModel() }
         val expenses = tx.filter { it.type == TransactionType.EXPENSE }
-        return if (expenses.isNotEmpty()) {
-            expenses.sumOf { it.amount } / expenses.size
-        } else 0.0
+        return if (expenses.isNotEmpty()) expenses.sumOf { it.amount } / expenses.size else 0.0
     }
 
     override suspend fun getAverageIncome(usuarioId: Int): Double {
         val userTx = getUserTransactionsOnce(usuarioId)
         val incomes = userTx.filter { it.type == TransactionType.INCOME }
-        return if (incomes.isNotEmpty()) {
-            incomes.sumOf { it.amount } / incomes.size
-        } else 0.0
+        return if (incomes.isNotEmpty()) incomes.sumOf { it.amount } / incomes.size else 0.0
     }
 }
