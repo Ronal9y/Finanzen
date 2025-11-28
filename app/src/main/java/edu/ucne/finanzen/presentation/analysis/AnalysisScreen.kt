@@ -2,6 +2,7 @@ package edu.ucne.finanzen.presentation.analysis
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -22,6 +23,7 @@ import edu.ucne.finanzen.ui.theme.FinanzenTheme
 @Composable
 fun AnalysisScreen(
     onBack: () -> Unit,
+    onLogout: () -> Unit,
     viewModel: AnalysisViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -134,6 +136,24 @@ fun AnalysisScreen(
                         StatisticItem("Promedio de Ingreso", "$${"%.2f".format(state.averageIncome)}")
                     }
                 }
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Button(
+                    onClick = { viewModel.logout(); onLogout() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = "Cerrar sesión",
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                }
             }
         }
     }
@@ -222,6 +242,6 @@ fun StatisticItem(label: String, value: String) {
 @Composable
 fun AnalysisScreenPreview() {
     FinanzenTheme() {
-        AnalysisScreen(onBack = {})
+        AnalysisScreen(onBack = {}, onLogout = {})
     }
 }
