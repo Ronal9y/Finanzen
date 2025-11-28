@@ -104,7 +104,7 @@ class DebtViewModel @Inject constructor(
             creationDate = hoy()
         )
 
-        repo.upsertDebt(deudaRenovada)
+        repo.updateDebt(deudaRenovada)
         onEvent(DebtEvent.CerrarDialogoRenovar)
         cargar()
     }
@@ -179,7 +179,7 @@ class DebtViewModel @Inject constructor(
             creationDate = hoy(),
             usuarioId = userId
         )
-        repo.upsertDebt(deudaParaGuardar)
+        repo.insertDebt(deudaParaGuardar)
     }
 
     private fun eliminar(id: Int) = viewModelScope.launch {
@@ -213,7 +213,7 @@ class DebtViewModel @Inject constructor(
             status = if (nuevoRemaining <= 0.0) DebtStatus.PAID else deuda.status
         )
 
-        repo.upsertDebt(deudaActualizada)
+        repo.updateDebt(deudaActualizada)
         cargar()
     }
 
