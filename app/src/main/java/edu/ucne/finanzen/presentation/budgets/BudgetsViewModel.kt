@@ -6,6 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import edu.ucne.finanzen.common.AlertManager
 import edu.ucne.finanzen.common.NotificationHelper
 import edu.ucne.finanzen.data.local.datastore.UserDataStore
 import edu.ucne.finanzen.domain.model.Budget
@@ -13,6 +14,8 @@ import edu.ucne.finanzen.domain.usecases.Budgets.DeleteBudgetByIdUseCase
 import edu.ucne.finanzen.domain.usecases.Budgets.GetBudgetsUseCase
 import edu.ucne.finanzen.domain.usecases.Budgets.InsertBudgetUseCase
 import edu.ucne.finanzen.domain.usecases.Budgets.UpdateBudgetSpentUseCase
+import edu.ucne.finanzen.common.FinanceEvents
+import kotlinx.coroutines.flow.collect
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,6 +31,7 @@ class BudgetsViewModel @Inject constructor(
     private val insertBudget: InsertBudgetUseCase,
     private val updateBudgetSpent: UpdateBudgetSpentUseCase,
     private val userDataStore: UserDataStore,
+    private val alertManager: AlertManager,
     @ApplicationContext context: Context
 ) : AndroidViewModel(context as Application) {
 
@@ -46,6 +50,13 @@ class BudgetsViewModel @Inject constructor(
             currentUserId = userId
             loadBudgets()
             syncSpent()
+
+            FinanceEvents.event.collect { shouldAlert ->
+                syncSpent()
+                if (shouldAlert) {
+                    state.value.budgets.forEach { alertManager.checkBudgetNow(it) }
+                }
+            }
         }
     }
 
@@ -108,6 +119,7 @@ class BudgetsViewModel @Inject constructor(
     }
 
     private fun checkAndNotifyThreshold(budget: Budget) {
+        alertManager.checkBudgetNow(budget)
         val used = budget.spent / budget.limit
         val percentage = (used * 100).toInt()
         if (used >= budget.alertThreshold / 100.0) {
