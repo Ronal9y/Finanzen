@@ -6,7 +6,6 @@ import edu.ucne.finanzen.data.mapper.toEntity
 import edu.ucne.finanzen.data.mapper.toGoalRequest
 import edu.ucne.finanzen.data.remote.RemoteDataSource
 import edu.ucne.finanzen.data.remote.Resource
-import edu.ucne.finanzen.data.remote.dto.GoalResponse
 import edu.ucne.finanzen.domain.model.Goal
 import edu.ucne.finanzen.domain.repository.GoalRepository
 import kotlinx.coroutines.flow.Flow
@@ -27,22 +26,21 @@ class GoalRepositoryImpl @Inject constructor(
     override suspend fun getGoalById(id: Int): Goal? =
         goalDao.getById(id)?.asExternalModel()
 
-    override suspend fun upsertGoal(goal: Goal) {
-        val result: Resource<GoalResponse> = (if (goal.goalId == 0) {
-            remoteDataSource.postGoal(goal.toGoalRequest())
-        } else {
-            remoteDataSource.putGoal(goal.goalId, goal.toGoalRequest())
-        }) as Resource<GoalResponse>
-
+    override suspend fun insertGoal(goal: Goal) {
+        val result = remoteDataSource.postGoal(goal.toGoalRequest())
         when (result) {
-            is Resource.Success<GoalResponse> -> {
-                val apiId = result.data?.goalId ?: goal.goalId
-                goalDao.upsert(goal.copy(goalId = apiId).toEntity())
-            }
-            is Resource.Error<GoalResponse> -> {
-                goalDao.upsert(goal.toEntity())
-            }
-            is Resource.Loading<GoalResponse> -> {}
+            is Resource.Success -> goalDao.upsert(goal.toEntity())
+            is Resource.Error -> goalDao.upsert(goal.toEntity())
+            is Resource.Loading -> {}
+        }
+    }
+
+    override suspend fun updateGoal(goal: Goal) {
+        val result = remoteDataSource.putGoal(goal.goalId, goal.toGoalRequest())
+        when (result) {
+            is Resource.Success -> goalDao.upsert(goal.toEntity())
+            is Resource.Error -> goalDao.upsert(goal.toEntity())
+            is Resource.Loading -> {}
         }
     }
 
