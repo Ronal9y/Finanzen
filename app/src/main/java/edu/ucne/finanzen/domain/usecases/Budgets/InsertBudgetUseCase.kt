@@ -7,5 +7,5 @@ import javax.inject.Inject
 class InsertBudgetUseCase @Inject constructor(
     private val repository: BudgetRepository
 ) {
-    suspend operator fun invoke(budget: Budget) = repository.insertBudget(budget)
+    suspend operator fun invoke(budget: Budget) = repository.upsertBudget(budget)
 }
