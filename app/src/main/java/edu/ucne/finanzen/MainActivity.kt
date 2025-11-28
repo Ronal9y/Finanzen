@@ -9,6 +9,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -19,6 +20,7 @@ import androidx.work.WorkManager
 import dagger.hilt.android.AndroidEntryPoint
 import edu.ucne.finanzen.Worker.FinanceCheckWorker
 import edu.ucne.finanzen.common.NotificationHelper
+import edu.ucne.finanzen.data.local.datastore.UserDataStore
 import edu.ucne.finanzen.presentation.navigation.BottomBar
 import edu.ucne.finanzen.presentation.navigation.FinanceNavHost
 import edu.ucne.finanzen.presentation.navigation.Screen
@@ -52,6 +54,9 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val navController = rememberNavController()
+            val userDataStore = UserDataStore(this)
+            val userId by userDataStore.userIdFlow.collectAsState(initial = null)
+            val startDest = if (userId == null) Screen.Welcome else Screen.Dashboard
             val navBackStackEntry by navController.currentBackStackEntryAsState()
             val currentRoute = navBackStackEntry?.destination?.route
             val bottomBarVisible = currentRoute != Screen.Welcome::class.qualifiedName &&
@@ -61,6 +66,7 @@ class MainActivity : ComponentActivity() {
             ) { innerPadding ->
                 FinanceNavHost(
                     navController = navController,
+                    startDestination = startDest,
                     modifier = Modifier.padding(innerPadding)
                 )
             }
