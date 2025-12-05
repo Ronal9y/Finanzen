@@ -19,6 +19,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import edu.ucne.finanzen.domain.model.CompoundingPeriod
 import edu.ucne.finanzen.domain.model.Debt
 import edu.ucne.finanzen.domain.model.DebtStatus
@@ -31,141 +32,18 @@ fun DebtListScreen(
     onBack: () -> Unit,
     viewModel: DebtViewModel = hiltViewModel()
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     var montoPago by remember { mutableStateOf("") }
     var nuevaFechaRenovar by remember { mutableStateOf("") }
 
-    if (state.mostrarDialogoPago != null) {
-        AlertDialog(
-            onDismissRequest = { viewModel.onEvent(DebtEvent.MostrarDialogoPago(null)) },
-            title = { Text("Abonar a deuda") },
-            text = {
-                Column {
-                    Text("Monto a abonar:")
-                    OutlinedTextField(
-                        value = montoPago,
-                        onValueChange = { montoPago = it },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        placeholder = { Text("0.00") },
-                        singleLine = true
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val monto = montoPago.toDoubleOrNull() ?: 0.0
-                        if (monto > 0) {
-                            viewModel.onEvent(
-                                DebtEvent.PagarCuota(state.mostrarDialogoPago!!, monto)
-                            )
-                            viewModel.onEvent(DebtEvent.MostrarDialogoPago(null))
-                            montoPago = ""
-                        }
-                    }
-                ) {
-                    Text("Pagar")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.onEvent(DebtEvent.MostrarDialogoPago(null)) }) {
-                    Text("Cancelar")
-                }
-            }
-        )
-    }
-
-    if (state.mostrarDialogoAgregar) {
-        DebtAddBottomSheet(
-            onDismiss = { viewModel.onEvent(DebtEvent.CerrarDialogoAgregar) },
-            onConfirm = { deuda ->
-                viewModel.onEvent(DebtEvent.GuardarDeuda(deuda))
-                viewModel.onEvent(DebtEvent.CerrarDialogoAgregar)
-            }
-        )
-    }
-
-    if (state.mostrarDialogoRenovar != null) {
-        val deuda = state.deudas.find { it.debtId == state.mostrarDialogoRenovar }
-        var penalizacionAdicional by remember { mutableStateOf("0.0") }
-
-        AlertDialog(
-            onDismissRequest = { viewModel.onEvent(DebtEvent.CerrarDialogoRenovar) },
-            title = { Text("Renovar Deuda") },
-            text = {
-                Column {
-                    deuda?.let {
-                        val saldoActual = it.remainingAmount
-                        val penalizacionBase = it.penaltyRate
-                        val penalizacionExtra = penalizacionAdicional.toDoubleOrNull() ?: 0.0
-                        val totalPenalizacion = penalizacionBase + penalizacionExtra
-                        val nuevoSaldo = saldoActual * (1 + totalPenalizacion / 100.0)
-
-                        Text("Deuda: ${it.name}", fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Saldo actual: $${"%.2f".format(saldoActual)}")
-                        Text("Penalización base: ${it.penaltyRate}%")
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Penalización adicional (%):")
-                        OutlinedTextField(
-                            value = penalizacionAdicional,
-                            onValueChange = { penalizacionAdicional = it },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text("0.0") }
-                        )
-
-                        Text("Total penalización: ${"%.1f".format(totalPenalizacion)}%")
-                        Text(
-                            "Nuevo saldo: $${"%.2f".format(nuevoSaldo)}",
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-
-                    Text("Nueva fecha límite:")
-                    OutlinedTextField(
-                        value = nuevaFechaRenovar,
-                        onValueChange = { nuevaFechaRenovar = it },
-                        label = { Text("yyyy-MM-dd") },
-                        placeholder = { Text("2024-12-31") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (nuevaFechaRenovar.isNotBlank()) {
-                            val penalizacionExtra = penalizacionAdicional.toDoubleOrNull() ?: 0.0
-                            viewModel.onEvent(
-                                DebtEvent.RenovarDeuda(
-                                    state.mostrarDialogoRenovar!!,
-                                    nuevaFechaRenovar,
-                                    penalizacionExtra
-                                )
-                            )
-                            nuevaFechaRenovar = ""
-                            penalizacionAdicional = "0.0"
-                        }
-                    }
-                ) {
-                    Text("Renovar")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    viewModel.onEvent(DebtEvent.CerrarDialogoRenovar)
-                    nuevaFechaRenovar = ""
-                    penalizacionAdicional = "0.0"
-                }) {
-                    Text("Cancelar")
-                }
-            }
-        )
-    }
+    MostrarDialogos(
+        state = state,
+        montoPago = montoPago,
+        nuevaFechaRenovar = nuevaFechaRenovar,
+        onMontoPagoChange = { montoPago = it },
+        onNuevaFechaRenovarChange = { nuevaFechaRenovar = it },
+        onEvent = viewModel::onEvent
+    )
 
     Scaffold(
         topBar = {
@@ -187,37 +65,242 @@ fun DebtListScreen(
             }
         }
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
-        ) {
-            if (state.cargando) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            } else if (state.deudas.isEmpty()) {
-                EmptyDebtsSection { viewModel.onEvent(DebtEvent.MostrarDialogoAgregar) }
-            } else {
-                LazyColumn(
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(state.deudas, key = { it.debtId }) { deuda ->
-                        DeudaCard(
-                            deuda = deuda,
-                            onAbonar = { id -> viewModel.onEvent(DebtEvent.MostrarDialogoPago(id)) },
-                            onEliminar = { id -> viewModel.onEvent(DebtEvent.EliminarDeuda(id)) }
-                        )
+        ContenidoPrincipal(state, viewModel::onEvent, innerPadding)
+    }
+}
+
+@Composable
+private fun MostrarDialogos(
+    state: DebtUiState,
+    montoPago: String,
+    nuevaFechaRenovar: String,
+    onMontoPagoChange: (String) -> Unit,
+    onNuevaFechaRenovarChange: (String) -> Unit,
+    onEvent: (DebtEvent) -> Unit
+) {
+    DialogoPago(state, montoPago, onMontoPagoChange, onEvent)
+    DialogoAgregar(state, onEvent)
+    DialogoRenovar(state, nuevaFechaRenovar, onNuevaFechaRenovarChange, onEvent)
+}
+
+@Composable
+private fun DialogoPago(
+    state: DebtUiState,
+    montoPago: String,
+    onMontoPagoChange: (String) -> Unit,
+    onEvent: (DebtEvent) -> Unit
+) {
+    if (state.mostrarDialogoPago == null) return
+
+    AlertDialog(
+        onDismissRequest = { onEvent(DebtEvent.MostrarDialogoPago(null)) },
+        title = { Text("Abonar a deuda") },
+        text = {
+            Column {
+                Text("Monto a abonar:")
+                OutlinedTextField(
+                    value = montoPago,
+                    onValueChange = onMontoPagoChange,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    placeholder = { Text("0.00") },
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val monto = montoPago.toDoubleOrNull() ?: 0.0
+                    if (monto > 0) {
+                        onEvent(DebtEvent.PagarCuota(state.mostrarDialogoPago, monto))
+                        onEvent(DebtEvent.MostrarDialogoPago(null))
+                        onMontoPagoChange("")
                     }
                 }
+            ) {
+                Text("Pagar")
             }
+        },
+        dismissButton = {
+            TextButton(onClick = { onEvent(DebtEvent.MostrarDialogoPago(null)) }) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+
+@Composable
+private fun DialogoAgregar(
+    state: DebtUiState,
+    onEvent: (DebtEvent) -> Unit
+) {
+    if (!state.mostrarDialogoAgregar) return
+
+    DebtAddBottomSheet(
+        onDismiss = { onEvent(DebtEvent.CerrarDialogoAgregar) },
+        onConfirm = { deuda ->
+            onEvent(DebtEvent.GuardarDeuda(deuda))
+            onEvent(DebtEvent.CerrarDialogoAgregar)
+        }
+    )
+}
+
+@Composable
+private fun DialogoRenovar(
+    state: DebtUiState,
+    nuevaFechaRenovar: String,
+    onNuevaFechaRenovarChange: (String) -> Unit,
+    onEvent: (DebtEvent) -> Unit
+) {
+    if (state.mostrarDialogoRenovar == null) return
+
+    val deuda = state.deudas.find { it.debtId == state.mostrarDialogoRenovar }
+    var penalizacionAdicional by remember { mutableStateOf("0.0") }
+
+    AlertDialog(
+        onDismissRequest = { onEvent(DebtEvent.CerrarDialogoRenovar) },
+        title = { Text("Renovar Deuda") },
+        text = {
+            ContenidoDialogoRenovar(
+                deuda = deuda,
+                penalizacionAdicional = penalizacionAdicional,
+                nuevaFechaRenovar = nuevaFechaRenovar,
+                onPenalizacionChange = { penalizacionAdicional = it },
+                onNuevaFechaRenovarChange = onNuevaFechaRenovarChange
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (nuevaFechaRenovar.isNotBlank()) {
+                        val penalizacionExtra = penalizacionAdicional.toDoubleOrNull() ?: 0.0
+                        onEvent(
+                            DebtEvent.RenovarDeuda(
+                                state.mostrarDialogoRenovar,
+                                nuevaFechaRenovar,
+                                penalizacionExtra
+                            )
+                        )
+                        onNuevaFechaRenovarChange("")
+                        penalizacionAdicional = "0.0"
+                    }
+                }
+            ) {
+                Text("Renovar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = {
+                onEvent(DebtEvent.CerrarDialogoRenovar)
+                onNuevaFechaRenovarChange("")
+                penalizacionAdicional = "0.0"
+            }) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+
+@Composable
+private fun ContenidoDialogoRenovar(
+    deuda: Debt?,
+    penalizacionAdicional: String,
+    nuevaFechaRenovar: String,
+    onPenalizacionChange: (String) -> Unit,
+    onNuevaFechaRenovarChange: (String) -> Unit
+) {
+    Column {
+        deuda?.let {
+            val saldoActual = it.remainingAmount
+            val penalizacionBase = it.penaltyRate
+            val penalizacionExtra = penalizacionAdicional.toDoubleOrNull() ?: 0.0
+            val totalPenalizacion = penalizacionBase + penalizacionExtra
+            val nuevoSaldo = saldoActual * (1 + totalPenalizacion / 100.0)
+
+            Text("Deuda: ${it.name}", fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("Saldo actual: $${"%.2f".format(saldoActual)}")
+            Text("Penalización base: ${it.penaltyRate}%")
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("Penalización adicional (%):")
+            OutlinedTextField(
+                value = penalizacionAdicional,
+                onValueChange = onPenalizacionChange,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("0.0") }
+            )
+
+            Text("Total penalización: ${"%.1f".format(totalPenalizacion)}%")
+            Text(
+                "Nuevo saldo: $${"%.2f".format(nuevoSaldo)}",
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        Text("Nueva fecha límite:")
+        OutlinedTextField(
+            value = nuevaFechaRenovar,
+            onValueChange = onNuevaFechaRenovarChange,
+            label = { Text("yyyy-MM-dd") },
+            placeholder = { Text("2024-12-31") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+private fun ContenidoPrincipal(
+    state: DebtUiState,
+    onEvent: (DebtEvent) -> Unit,
+    innerPadding: PaddingValues
+) {
+    Column(
+        modifier = Modifier
+            .padding(innerPadding)
+            .fillMaxSize()
+    ) {
+        when {
+            state.cargando -> MostrarCargando()
+            state.deudas.isEmpty() -> EmptyDebtsSection { onEvent(DebtEvent.MostrarDialogoAgregar) }
+            else -> MostrarListaDeudas(state.deudas, onEvent)
         }
     }
 }
+
+@Composable
+private fun MostrarCargando() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator()
+    }
+}
+
+@Composable
+private fun MostrarListaDeudas(
+    deudas: List<Debt>,
+    onEvent: (DebtEvent) -> Unit
+) {
+    LazyColumn(
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(deudas, key = { it.debtId }) { deuda ->
+            DeudaCard(
+                deuda = deuda,
+                onAbonar = { id -> onEvent(DebtEvent.MostrarDialogoPago(id)) },
+                onEliminar = { id -> onEvent(DebtEvent.EliminarDeuda(id)) }
+            )
+        }
+    }
+}
+
+// Las demás funciones (EmptyDebtsSection, DeudaCard, etc.) se mantienen igual...
 
 @Composable
 fun EmptyDebtsSection(onAdd: () -> Unit) {
