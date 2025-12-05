@@ -106,46 +106,61 @@ fun AddGoalDialog(
     }
 }
 
-
 fun convertToISODate(dateString: String): String {
     return try {
-        if (dateString.isBlank()) {
-
-            val calendar = Calendar.getInstance()
-            calendar.add(Calendar.MONTH, 6)
-            val formatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
-            formatter.format(calendar.time)
-        } else if (dateString.contains("-") && dateString.length == 10) {
-
-            "${dateString}T00:00:00"
-        } else {
-
-            val inputFormats = listOf(
-                SimpleDateFormat("dd MMM yyyy", Locale.getDefault()),
-                SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()),
-                SimpleDateFormat("MM/dd/yyyy", Locale.getDefault())
-            )
-
-            var parsedDate: Date? = null
-            for (format in inputFormats) {
-                try {
-                    parsedDate = format.parse(dateString)
-                    if (parsedDate != null) break
-                } catch (e: Exception) {
-
-                }
-            }
-
-            if (parsedDate != null) {
-                val outputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
-                outputFormat.format(parsedDate)
-            } else {
-
-                "2024-12-31T00:00:00"
-            }
+        when {
+            dateString.isBlank() -> createDefaultFutureDate()
+            isSimpleDateFormat(dateString) -> "${dateString}T00:00:00"
+            else -> parseCustomDateFormats(dateString)
         }
     } catch (e: Exception) {
-
-        "2024-12-31T00:00:00"
+        getFallbackDate()
     }
+}
+
+private fun createDefaultFutureDate(): String {
+    val calendar = Calendar.getInstance()
+    calendar.add(Calendar.MONTH, 6)
+    val formatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+    return formatter.format(calendar.time)
+}
+
+private fun isSimpleDateFormat(dateString: String): Boolean {
+    return dateString.contains("-") && dateString.length == 10
+}
+
+private fun parseCustomDateFormats(dateString: String): String {
+    val parsedDate = tryParseWithMultipleFormats(dateString)
+    return if (parsedDate != null) {
+        formatDateToISO(parsedDate)
+    } else {
+        getFallbackDate()
+    }
+}
+
+private fun tryParseWithMultipleFormats(dateString: String): Date? {
+    val inputFormats = listOf(
+        SimpleDateFormat("dd MMM yyyy", Locale.getDefault()),
+        SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()),
+        SimpleDateFormat("MM/dd/yyyy", Locale.getDefault())
+    )
+
+    for (format in inputFormats) {
+        try {
+            val parsedDate = format.parse(dateString)
+            if (parsedDate != null) return parsedDate
+        } catch (e: Exception) {
+            // Ignorar y continuar con el siguiente formato
+        }
+    }
+    return null
+}
+
+private fun formatDateToISO(date: Date): String {
+    val outputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+    return outputFormat.format(date)
+}
+
+private fun getFallbackDate(): String {
+    return "2024-12-31T00:00:00"
 }
