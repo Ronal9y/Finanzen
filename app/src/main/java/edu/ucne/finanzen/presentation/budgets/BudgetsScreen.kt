@@ -12,6 +12,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import edu.ucne.finanzen.ui.theme.FinanzenTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -20,7 +21,7 @@ fun BudgetsScreen(
     onBack: () -> Unit,
     viewModel: BudgetsViewModel = hiltViewModel()
 ) {
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     var showAddDialog by remember { mutableStateOf(false) }
 
     if (showAddDialog) {

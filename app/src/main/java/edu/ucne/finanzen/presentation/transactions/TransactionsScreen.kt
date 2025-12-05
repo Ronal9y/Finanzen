@@ -17,7 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import edu.ucne.finanzen.ui.theme.FinanzenTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -27,7 +27,7 @@ fun TransactionsScreen(
     onAddTransaction: () -> Unit,
     viewModel: TransactionsViewModel = hiltViewModel()
 ) {
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     var showAddDialog by remember { mutableStateOf(false) }
     var currentUserId by remember { mutableStateOf<Int?>(null) }
 
@@ -38,9 +38,9 @@ fun TransactionsScreen(
         }
     }
 
-    if (showAddDialog && currentUserId != null) {
+    if (shouldShowAddDialog(showAddDialog, currentUserId)) {
         AddTransactionDialog(
-            currentUserId = currentUserId!!, // Pasamos el userId al diálogo
+            currentUserId = requireNotNull(currentUserId),
             onDismiss = { showAddDialog = false },
             onAdd = { transaction ->
                 viewModel.onEvent(TransactionsEvent.AddTransaction(transaction))
@@ -67,13 +67,7 @@ fun TransactionsScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = {
-                    if (currentUserId != null) {
-                        showAddDialog = true
-                    } else {
-
-                    }
-                },
+                onClick = { handleAddButtonClick(currentUserId) { showAddDialog = true } },
                 containerColor = MaterialTheme.colorScheme.primary
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Agregar Transacción")
@@ -92,32 +86,79 @@ fun TransactionsScreen(
                 }
             )
 
-            if (state.isLoading) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
+            TransactionContent(
+                state = state,
+                currentUserId = currentUserId,
+                onShowAddDialog = { showAddDialog = true },
+                onDeleteTransaction = { id ->
+                    viewModel.onEvent(TransactionsEvent.DeleteTransaction(id))
                 }
-            } else if (state.transactions.isEmpty()) {
-                EmptyTransactionsSection {
-                    if (currentUserId != null) {
-                        showAddDialog = true
-                    }
-                }
-            } else {
-                TransactionListScreen(
-                    transactions = state.transactions,
-                    onDeleteTransaction = { id ->
-                        viewModel.onEvent(TransactionsEvent.DeleteTransaction(id))
-                    }
-                )
+            )
+        }
+    }
+}
+
+@Composable
+private fun TransactionContent(
+    state: TransactionsState,
+    currentUserId: Int?,
+    onShowAddDialog: () -> Unit,
+    onDeleteTransaction: (Int) -> Unit
+) {
+    when {
+        state.isLoading -> LoadingContent()
+        state.transactions.isEmpty() -> EmptyContent(
+            currentUserId = currentUserId,
+            onShowAddDialog = onShowAddDialog
+        )
+        else -> TransactionListScreen(
+            transactions = state.transactions,
+            onDeleteTransaction = onDeleteTransaction
+        )
+    }
+}
+
+@Composable
+private fun LoadingContent() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator()
+    }
+}
+
+@Composable
+private fun EmptyContent(
+    currentUserId: Int?,
+    onShowAddDialog: () -> Unit
+) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        EmptyTransactionsSection {
+            if (currentUserId != null) {
+                onShowAddDialog()
             }
         }
     }
 }
+
+private fun shouldShowAddDialog(showAddDialog: Boolean, currentUserId: Int?): Boolean {
+    return showAddDialog && currentUserId != null
+}
+
+private fun handleAddButtonClick(
+    currentUserId: Int?,
+    onShowAddDialog: () -> Unit
+) {
+    if (currentUserId != null) {
+        onShowAddDialog()
+    }
+}
+
+// Las demás funciones (FilterSection, EmptyTransactionsSection, etc.) se mantienen igual...
 
 @Composable
 fun FilterSection(
@@ -145,27 +186,21 @@ fun FilterSection(
 
 @Composable
 fun EmptyTransactionsSection(onAddTransaction: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize(),
-        contentAlignment = Alignment.Center
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Text(
-                "No hay transacciones",
-                style = MaterialTheme.typography.bodyLarge
-            )
-            Text(
-                "Agrega tu primera transacción",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Button(onClick = onAddTransaction) {
-                Text("Agregar Transacción")
-            }
+        Text(
+            "No hay transacciones",
+            style = MaterialTheme.typography.bodyLarge
+        )
+        Text(
+            "Agrega tu primera transacción",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Button(onClick = onAddTransaction) {
+            Text("Agregar Transacción")
         }
     }
 }

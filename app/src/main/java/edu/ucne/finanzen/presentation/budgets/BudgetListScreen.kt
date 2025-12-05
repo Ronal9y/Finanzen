@@ -132,7 +132,7 @@ private fun BudgetListScreenPreview() {
                     category = CategoryType.ALIMENTACION,
                     limit = 600.0,
                     spent = 450.0,
-                    month = "2025-11",
+                    month = "2025-12",
                     alertThreshold = 80,
                     usuarioId = 1
                 ),
@@ -161,7 +161,7 @@ private fun BudgetListItemPreview() {
                 category = CategoryType.ENTRETENIMIENTO,
                 limit = 200.0,
                 spent = 180.0,
-                month = "2025-11",
+                month = "2025-10",
                 alertThreshold = 80,
                 usuarioId = 1
             ),

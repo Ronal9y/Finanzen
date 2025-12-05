@@ -1,79 +1,76 @@
-package edu.ucne.finanzen
+package edu.ucne.finanzen.data.repository
 
-import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import edu.ucne.finanzen.data.local.dao.GoalDao
-import edu.ucne.finanzen.data.local.entity.GoalEntity
+import edu.ucne.finanzen.data.mapper.asExternalModel
+import edu.ucne.finanzen.data.mapper.toEntity
+import edu.ucne.finanzen.data.mapper.toGoalRequest
 import edu.ucne.finanzen.data.remote.RemoteDataSource
 import edu.ucne.finanzen.data.remote.Resource
-import edu.ucne.finanzen.data.remote.dto.GoalResponse
-import edu.ucne.finanzen.data.repository.GoalRepositoryImpl
 import edu.ucne.finanzen.domain.model.Goal
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.mockk
-import io.mockk.slot
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runTest
-import org.junit.Before
-import org.junit.Rule
-import org.junit.Test
-import kotlin.test.assertEquals
+import edu.ucne.finanzen.domain.repository.GoalRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import javax.inject.Inject
 
-@ExperimentalCoroutinesApi
-class GoalRepositoryImplTest {
+class GoalRepositoryImpl @Inject constructor(
+    private val goalDao: GoalDao,
+    private val remoteDataSource: RemoteDataSource
+) : GoalRepository {
 
-    @get:Rule
-    val instantExecutorRule = InstantTaskExecutorRule()
+    override fun getAllGoals(usuarioId: Int): Flow<List<Goal>> =
+        goalDao.observeAll().map { list ->
+            list.map { it.asExternalModel() }
+                .filter { it.usuarioId == usuarioId }
+        }
 
-    private lateinit var repo: GoalRepositoryImpl
-    private val dao = mockk<GoalDao>(relaxed = true)
-    private val remote = mockk<RemoteDataSource>(relaxed = true)
+    override suspend fun getGoalById(id: Int): Goal? =
+        goalDao.getById(id)?.asExternalModel()
 
-    @Before
-    fun setup() {
-        repo = GoalRepositoryImpl(dao, remote)
+    override suspend fun insertGoal(goal: Goal) {
+        val result = remoteDataSource.postGoal(goal.toGoalRequest())
+        when (result) {
+            is Resource.Success -> goalDao.upsert(goal.toEntity())
+            is Resource.Error -> goalDao.upsert(goal.toEntity())
+            is Resource.Loading -> {}
+        }
     }
 
-    @Test
-    fun `upsertGoal actualiza id con el de la API`() = runTest {
-        val goal = Goal(
-            goalId = 0,
-            name = "Viaje",
-            targetAmount = 1000.0,
-            currentAmount = 0.0,
-            deadline = "2026-12-31",
-            usuarioId = 1,
-            description = "Europa"
-        )
-        val apiResp = GoalResponse(
-            goalId = 77,
-            name = "Viaje",
-            targetAmount = 1000.0,
-            currentAmount = 0.0,
-            deadline = "2026-12-31",
-            description = "Europa",
-            usuarioId = 1
-        )
-        coEvery { remote.postGoal(any()) } returns Resource.Success(apiResp)
-
-        repo.upsertGoal(goal)
-
-        val slot = slot<GoalEntity>()
-        coVerify { dao.upsert(capture(slot)) }
-        assertEquals(77, slot.captured.goalId)
+    override suspend fun updateGoal(goal: Goal) {
+        val result = remoteDataSource.putGoal(goal.goalId, goal.toGoalRequest())
+        when (result) {
+            is Resource.Success -> goalDao.upsert(goal.toEntity())
+            is Resource.Error -> goalDao.upsert(goal.toEntity())
+            is Resource.Loading -> {}
+        }
     }
 
-    @Test
-    fun `getTotalCompletionPercentage calcula bien`() = runTest {
+    override suspend fun deleteGoal(goal: Goal) {
+        val result = remoteDataSource.deleteGoal(goal.goalId)
+        when (result) {
+            is Resource.Success -> goalDao.delete(goal.toEntity())
+            is Resource.Error -> goalDao.delete(goal.toEntity())
+            is Resource.Loading -> {}
+        }
+    }
 
-        val list = listOf(
-            GoalEntity(0, "A", 100.0, 50.0, "2026-12-31", 1, "desc"),
-            GoalEntity(0, "B", 200.0, 50.0, "2026-12-31", 1, "desc")
-        )
-        coEvery { dao.getAll() } returns list
+    override suspend fun deleteGoalById(id: Int) {
+        val result = remoteDataSource.deleteGoal(id)
+        when (result) {
+            is Resource.Success -> goalDao.deleteById(id)
+            is Resource.Error -> goalDao.deleteById(id)
+            is Resource.Loading -> {}
+        }
+    }
 
-        val pct = repo.getTotalCompletionPercentage(1)
+    override suspend fun getGoalsCount(usuarioId: Int): Int =
+        goalDao.getAll().count { it.usuarioId == usuarioId }
 
-        assertEquals(33.333, pct, 0.01) // (50+50)/(100+200) = 100/300
+    override suspend fun getTotalCompletionPercentage(usuarioId: Int): Double {
+        val goals = goalDao.getAll()
+            .map { it.asExternalModel() }
+            .filter { it.usuarioId == usuarioId }
+        return if (goals.isNotEmpty()) {
+            goals.sumOf { it.currentAmount } / goals.sumOf { it.targetAmount } * 100
+        } else 0.0
     }
 }

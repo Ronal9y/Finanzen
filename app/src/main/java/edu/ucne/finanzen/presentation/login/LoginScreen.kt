@@ -28,6 +28,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import edu.ucne.finanzen.ui.theme.FinanzenTheme
 import edu.ucne.finanzen.R
 
@@ -37,7 +38,7 @@ fun LoginScreen(
     onLoginSuccess: () -> Unit,
     viewModel: LoginViewModel = hiltViewModel()
 ) {
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(state.isLoggedIn, state.loggedInUserName) {
         if (state.isLoggedIn && state.loggedInUserName != null) {
@@ -188,8 +189,6 @@ fun LoginScreen(
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
-
-                // Mensaje de error
                 state.error?.let {
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
@@ -258,7 +257,7 @@ fun LoginScreenWithDataPreview() {
     FinanzenTheme() {
 
         val fakeState = LoginState(
-            userNameInput = "usuario@ejemplo.com",
+            userNameInput = "usuario@gmail.com",
             passwordInput = "password123",
             isLoading = false,
             error = null
@@ -287,7 +286,7 @@ fun LoginScreenLoadingPreview() {
 fun LoginScreenErrorPreview() {
     FinanzenTheme() {
         val fakeState = LoginState(
-            userNameInput = "usuario@ejemplo.com",
+            userNameInput = "user@ejemplo.com",
             passwordInput = "password123",
             isLoading = false,
             error = "Credenciales incorrectas"

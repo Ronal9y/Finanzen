@@ -12,6 +12,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import edu.ucne.finanzen.R
 import edu.ucne.finanzen.common.components.LottieAnimationView
 import edu.ucne.finanzen.ui.theme.FinanzenTheme
@@ -22,7 +23,7 @@ fun GoalsScreen(
     onBack: () -> Unit,
     viewModel: GoalsViewModel = hiltViewModel()
 ) {
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     var showAddDialog by remember { mutableStateOf(false) }
 
     val justCompletedGoal = state.goals.find { it.currentAmount >= it.targetAmount }

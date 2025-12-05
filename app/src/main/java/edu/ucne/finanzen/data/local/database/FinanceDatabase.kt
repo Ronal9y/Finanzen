@@ -21,7 +21,7 @@ import androidx.room.TypeConverters
         GoalEntity::class,
         DebtEntity::class
     ],
-    version = 4,
+    version = 7,
     exportSchema = false
 )
 abstract class FinanceDatabase : RoomDatabase() {

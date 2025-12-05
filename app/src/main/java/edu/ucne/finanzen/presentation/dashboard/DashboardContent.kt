@@ -81,7 +81,6 @@ fun GradientBalanceCard(
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
 
-                /* --- Balance Total MÁS GRANDE Y OSCURO --- */
                 Text(
                     text = "Balance Total",
                     style = MaterialTheme.typography.headlineSmall.copy(
@@ -207,40 +206,71 @@ fun RecentTransactionsCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Transacciones Recientes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                TextButton(onClick = onViewAll) { Text("Ver todas") }
-            }
+            HeaderRow(onViewAll)
             Spacer(Modifier.height(8.dp))
             if (transactions.isEmpty()) {
-                Text("No hay transacciones recientes", style = MaterialTheme.typography.bodyMedium)
+                EmptyMessage()
             } else {
-                transactions.take(5).forEach { tx ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(tx.category.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                            if (tx.description.isNotBlank()) Text(tx.description, style = MaterialTheme.typography.bodySmall)
-                            Text(tx.date, style = MaterialTheme.typography.bodySmall)
-                        }
-                        Text(
-                            "${if (tx.type == TransactionType.INCOME) "+" else "-"}$${"%.2f".format(tx.amount)}",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = if (tx.type == TransactionType.INCOME) Color(0xFF388E3C) else Color(0xFFD32F2F)
-                        )
-                    }
-                }
+                TransactionsList(transactions.take(5))
             }
         }
     }
 }
+
+@Composable
+private fun HeaderRow(onViewAll: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            "Transacciones Recientes",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+        TextButton(onClick = onViewAll) { Text("Ver todas") }
+    }
+}
+
+@Composable
+private fun EmptyMessage() {
+    Text("No hay transacciones recientes", style = MaterialTheme.typography.bodyMedium)
+}
+
+@Composable
+private fun TransactionsList(transactions: List<Transaction>) {
+    transactions.forEach { tx ->
+        TransactionRow(tx)
+    }
+}
+
+@Composable
+private fun TransactionRow(tx: Transaction) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            Text(tx.category.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+            tx.description.takeIf { it.isNotBlank() }?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall)
+            }
+            Text(tx.date, style = MaterialTheme.typography.bodySmall)
+        }
+        Text(
+            text = "${tx.sign}${"%.2f".format(tx.amount)}",
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold,
+            color = tx.color
+        )
+    }
+}
+private val Transaction.sign: String
+    get() = if (type == TransactionType.INCOME) "+" else "-"
+
+private val Transaction.color: Color
+    get() = if (type == TransactionType.INCOME) Color(0xFF388E3C) else Color(0xFFD32F2F)

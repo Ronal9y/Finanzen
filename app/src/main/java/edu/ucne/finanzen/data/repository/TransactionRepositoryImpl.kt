@@ -21,7 +21,7 @@ class TransactionRepositoryImpl @Inject constructor(
     private val remoteDataSource: RemoteDataSource
 ) : TransactionRepository {
 
-    /* ----------  QUERIES (sin cambios) ---------- */
+
     override fun getAllTransactions(usuarioId: Int): Flow<List<Transaction>> =
         transactionDao.observeAll()
             .map { list ->
@@ -41,7 +41,7 @@ class TransactionRepositoryImpl @Inject constructor(
     override suspend fun getTransactionById(id: Int): Transaction? =
         transactionDao.getById(id)?.asExternalModel()
 
-    /* ----------  INSERT  ---------- */
+
     override suspend fun insertTransaction(transaction: Transaction) {
         val result: Resource<TransactionResponse> = remoteDataSource.postTransaction(transaction.toRequest())
         when (result) {

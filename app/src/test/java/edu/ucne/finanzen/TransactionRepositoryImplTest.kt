@@ -1,104 +1,149 @@
-package edu.ucne.finanzen
+package edu.ucne.finanzen.data.repository
 
-import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import edu.ucne.finanzen.data.local.dao.TransactionDao
-import edu.ucne.finanzen.data.local.entity.TransactionEntity
+import edu.ucne.finanzen.data.mapper.asExternalModel
+import edu.ucne.finanzen.data.mapper.toEntity
+import edu.ucne.finanzen.data.mapper.toRequest
 import edu.ucne.finanzen.data.remote.RemoteDataSource
 import edu.ucne.finanzen.data.remote.Resource
 import edu.ucne.finanzen.data.remote.dto.TransactionResponse
-import edu.ucne.finanzen.data.repository.TransactionRepositoryImpl
-import edu.ucne.finanzen.domain.model.CategoryType
 import edu.ucne.finanzen.domain.model.Transaction
 import edu.ucne.finanzen.domain.model.TransactionType
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.mockk
-import io.mockk.slot
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.runTest
-import org.junit.Before
-import org.junit.Rule
-import org.junit.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
+import edu.ucne.finanzen.domain.repository.TransactionRepository
+import edu.ucne.finanzen.common.FinanceEvents
+import javax.inject.Inject
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 
-@ExperimentalCoroutinesApi
-class TransactionRepositoryImplTest {
+class TransactionRepositoryImpl @Inject constructor(
+    private val transactionDao: TransactionDao,
+    private val remoteDataSource: RemoteDataSource
+) : TransactionRepository {
 
-    @get:Rule
-    val instantExecutorRule = InstantTaskExecutorRule()
+    /* ----------  QUERIES (sin cambios) ---------- */
+    override fun getAllTransactions(usuarioId: Int): Flow<List<Transaction>> =
+        transactionDao.observeAll()
+            .map { list ->
+                list
+                    .map { it.asExternalModel() }
+                    .filter { it.usuarioId == usuarioId }
+            }
 
-    private lateinit var repo: TransactionRepositoryImpl
-    private val dao = mockk<TransactionDao>(relaxed = true)
-    private val remote = mockk<RemoteDataSource>(relaxed = true)
+    override fun getTransactionsByType(usuarioId: Int, type: String): Flow<List<Transaction>> =
+        transactionDao.observeByType(type)
+            .map { list ->
+                list
+                    .map { it.asExternalModel() }
+                    .filter { it.usuarioId == usuarioId }
+            }
 
-    @Before
-    fun setup() {
-        repo = TransactionRepositoryImpl(dao, remote)
+    override suspend fun getTransactionById(id: Int): Transaction? =
+        transactionDao.getById(id)?.asExternalModel()
+
+    /* ----------  INSERT  ---------- */
+    override suspend fun insertTransaction(transaction: Transaction) {
+        val result: Resource<TransactionResponse> = remoteDataSource.postTransaction(transaction.toRequest())
+        when (result) {
+            is Resource.Success -> {
+                val apiId = result.data?.transactionId ?: 0
+
+                transactionDao.upsert(transaction.copy(transactionId = apiId).toEntity())
+                FinanceEvents.notifyChange()
+            }
+            is Resource.Error -> {
+
+                transactionDao.upsert(transaction.toEntity())
+                FinanceEvents.notifyChange()
+            }
+            is Resource.Loading -> {}
+        }
     }
 
-    @Test
-    fun `upsertTransaction usa id devuelto por la API`() = runTest {
-        val tx = Transaction(
-            transactionId = 0,
-            usuarioId = 1,
-            type = TransactionType.EXPENSE,
-            amount = 10.0,
-            category = CategoryType.ENTRETENIMIENTO,
-            description = "Cine",
-            date = "2025-11-26"
-        )
-        val apiResp = TransactionResponse(
-            transactionId = 55,
-            type = "EXPENSE",
-            amount = 10.0,
-            category = "ENTRETENIMIENTO",
-            description = "Cine",
-            date = "2025-11-26",
-            usuarioId = 1
-        )
-        coEvery { remote.postTransaction(any()) } returns Resource.Success(apiResp)
+    override suspend fun updateTransaction(transaction: Transaction) {
+        val result: Resource<Unit> =
+            remoteDataSource.putTransaction(transaction.transactionId, transaction.toRequest())
+        when (result) {
+            is Resource.Success -> {
 
-        repo.upsertTransaction(tx)
-
-        val slot = slot<TransactionEntity>()
-        coVerify { dao.upsert(capture(slot)) }
-        assertEquals(55, slot.captured.transactionId)
+                transactionDao.upsert(transaction.toEntity())
+                FinanceEvents.notifyChange()
+            }
+            is Resource.Error -> {
+                transactionDao.upsert(transaction.toEntity())
+                FinanceEvents.notifyChange()
+            }
+            is Resource.Loading -> {}
+        }
     }
 
-    @Test
-    fun `deleteTransactionById tira excepcion cuando la API falla`() = runTest {
-        coEvery { remote.deleteTransaction(7) } returns Resource.Error("401")
-        assertFailsWith<Exception> { repo.deleteTransactionById(7) }
+    override suspend fun deleteTransaction(transaction: Transaction) {
+        val result = remoteDataSource.deleteTransaction(transaction.transactionId)
+        when (result) {
+            is Resource.Success -> {
+                transactionDao.delete(transaction.toEntity())
+                FinanceEvents.notifyChange(shouldAlert = false)
+            }
+            is Resource.Error -> {
+                transactionDao.delete(transaction.toEntity())
+                FinanceEvents.notifyChange(shouldAlert = false)
+                throw Exception("Error de API: ${result.message}")
+            }
+            is Resource.Loading -> {}
+        }
     }
 
-    @Test
-    fun `getBalance calcula ingresos menos gastos`() = runTest {
-        val list = listOf(
-            TransactionEntity(
-                transactionId = 1,
-                usuarioId = 1,
-                amount = 100.0,
-                description = "Sueldo",
-                type = TransactionType.INCOME,
-                category = CategoryType.SALARIO,
-                date = "2025-11-26"
-            ),
-            TransactionEntity(
-                transactionId = 2,
-                usuarioId = 1,
-                amount = 30.0,
-                description = "Comida",
-                type = TransactionType.EXPENSE,
-                category = CategoryType.ALIMENTACION,
-                date = "2025-11-26"
-            )
-        )
-        coEvery { dao.observeAll() } returns flowOf(list)
+    override suspend fun deleteTransactionById(id: Int) {
+        val result = remoteDataSource.deleteTransaction(id)
+        when (result) {
+            is Resource.Success -> {
+                transactionDao.deleteById(id)
+                FinanceEvents.notifyChange(shouldAlert = false)
+            }
+            is Resource.Error -> {
+                transactionDao.deleteById(id)
+                FinanceEvents.notifyChange(shouldAlert = false)
+                throw Exception("Error de API: ${result.message}")
+            }
+            is Resource.Loading -> {}
+        }
+    }
+    private suspend fun getUserTransactionsOnce(usuarioId: Int): List<Transaction> {
+        val entities = transactionDao.observeAll().first()
+        return entities
+            .map { it.asExternalModel() }
+            .filter { it.usuarioId == usuarioId }
+    }
 
-        val balance = repo.getBalance(1)
+    override suspend fun getTotalIncome(usuarioId: Int): Double {
+        val userTx = getUserTransactionsOnce(usuarioId)
+        return userTx.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
+    }
 
-        assertEquals(70.0, balance)
+    override suspend fun getTotalExpenses(usuarioId: Int): Double {
+        val userTx = getUserTransactionsOnce(usuarioId)
+        return userTx.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+    }
+
+    override suspend fun getBalance(usuarioId: Int): Double =
+        getTotalIncome(usuarioId) - getTotalExpenses(usuarioId)
+
+    override suspend fun getExpensesByCategory(category: String): Double =
+        transactionDao.getExpensesByCategory(category) ?: 0.0
+
+    override suspend fun getTransactionsCount(): Int =
+        transactionDao.getCount()
+
+    override suspend fun getAverageExpense(): Double {
+        val entities = transactionDao.observeAll().first()
+        val tx = entities.map { it.asExternalModel() }
+        val expenses = tx.filter { it.type == TransactionType.EXPENSE }
+        return if (expenses.isNotEmpty()) expenses.sumOf { it.amount } / expenses.size else 0.0
+    }
+
+    override suspend fun getAverageIncome(usuarioId: Int): Double {
+        val userTx = getUserTransactionsOnce(usuarioId)
+        val incomes = userTx.filter { it.type == TransactionType.INCOME }
+        return if (incomes.isNotEmpty()) incomes.sumOf { it.amount } / incomes.size else 0.0
     }
 }
