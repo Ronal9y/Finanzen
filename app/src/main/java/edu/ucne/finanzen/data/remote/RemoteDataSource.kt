@@ -1,467 +1,157 @@
 package edu.ucne.finanzen.data.remote
 
-import edu.ucne.finanzen.data.remote.dto.BudgetRequest
-import edu.ucne.finanzen.data.remote.dto.BudgetResponse
-import edu.ucne.finanzen.data.remote.dto.DebtRequest
-import edu.ucne.finanzen.data.remote.dto.DebtResponse
-import edu.ucne.finanzen.data.remote.dto.GoalRequest
-import edu.ucne.finanzen.data.remote.dto.GoalResponse
-import edu.ucne.finanzen.data.remote.dto.TransactionRequest
-import edu.ucne.finanzen.data.remote.dto.TransactionResponse
-import edu.ucne.finanzen.data.remote.dto.UsuarioRequest
-import edu.ucne.finanzen.data.remote.dto.UsuarioResponse
+import edu.ucne.finanzen.data.remote.dto.*
 import retrofit2.HttpException
+import retrofit2.Response
 import java.io.IOException
 import javax.inject.Inject
 
 class RemoteDataSource @Inject constructor(
     private val api: UsuariosApi
 ) {
-    suspend fun getUsuarios(): Resource<List<UsuarioResponse>> {
+    // Constantes para mensajes de error consistentes
+    companion object {
+        private const val EMPTY_RESPONSE_ERROR = "Respuesta vacía del servidor"
+        private const val NETWORK_ERROR = "Error de red"
+        private const val UNEXPECTED_ERROR = "Error inesperado"
+    }
+
+    // Funcion generica para manejar todas las llamadas API
+    private suspend fun <T> safeApiCall(
+        apiCall: suspend () -> Response<T>
+    ): Resource<T> {
         return try {
-            val response = api.getUsuarios()
-            if (response.isSuccessful) {
-                response.body()?.let { Resource.Success(it) }
-                    ?: Resource.Error("Respuesta vacía del servidor")
-            } else {
-                Resource.Error("HTTP ${response.code()} ${response.message()}")
-            }
+            val response = apiCall()
+            handleResponse(response)
         } catch (e: IOException) {
-            Resource.Error("Error de red: ${e.message}")
+            Resource.Error("$NETWORK_ERROR: ${e.message}")
         } catch (e: HttpException) {
-            Resource.Error("Error HTTP ${e.code()}: ${e.message()}")
+            Resource.Error("Error HTTP ${e.code()}: ${e.message}")
         } catch (e: Exception) {
-            Resource.Error("Error inesperado: ${e.message}")
+            Resource.Error("$UNEXPECTED_ERROR: ${e.message}")
         }
     }
 
-    suspend fun getUsuario(id: Int): Resource<UsuarioResponse> {
+    // Funcion generica para manejar operaciones que no devuelven datos
+    private suspend fun safeApiCallUnit(
+        apiCall: suspend () -> Response<Unit>
+    ): Resource<Unit> {
         return try {
-            val response = api.getUsuario(id)
+            val response = apiCall()
             if (response.isSuccessful) {
-                response.body()?.let { Resource.Success(it) }
-                    ?: Resource.Error("Respuesta vacía del servidor")
+                Resource.Success(Unit)
             } else {
                 Resource.Error("HTTP ${response.code()} ${response.message()}")
             }
         } catch (e: IOException) {
-            Resource.Error("Error de red: ${e.message}")
+            Resource.Error("$NETWORK_ERROR: ${e.message}")
         } catch (e: HttpException) {
-            Resource.Error("Error HTTP ${e.code()}: ${e.message()}")
+            Resource.Error("Error HTTP ${e.code()}: ${e.message}")
         } catch (e: Exception) {
-            Resource.Error("Error inesperado: ${e.message}")
+            Resource.Error("$UNEXPECTED_ERROR: ${e.message}")
         }
     }
+
+    private fun <T> handleResponse(response: Response<T>): Resource<T> {
+        return if (response.isSuccessful) {
+            response.body()?.let { Resource.Success(it) }
+                ?: Resource.Error(EMPTY_RESPONSE_ERROR)
+        } else {
+            Resource.Error("HTTP ${response.code()} ${response.message()}")
+        }
+    }
+
+    // Usuarios
+    suspend fun getUsuarios(): Resource<List<UsuarioResponse>> =
+        safeApiCall { api.getUsuarios() }
+
+    suspend fun getUsuario(id: Int): Resource<UsuarioResponse> =
+        safeApiCall { api.getUsuario(id) }
 
     suspend fun postUsuario(request: UsuarioResponse): Resource<UsuarioResponse> {
-        return try {
+        return safeApiCall {
             val dto = UsuarioRequest(
                 userName = request.userName,
                 password = request.password
             )
-            val response = api.postUsuario(dto)
-            if (response.isSuccessful) {
-                response.body()?.let { Resource.Success(it) }
-                    ?: Resource.Error("Respuesta vacía del servidor")
-            } else {
-                Resource.Error("HTTP ${response.code()} ${response.message()}")
-            }
-        } catch (e: IOException) {
-            Resource.Error("Error de red: ${e.message}")
-        } catch (e: HttpException) {
-            Resource.Error("Error HTTP ${e.code()}: ${e.message()}")
-        } catch (e: Exception) {
-            Resource.Error("Error inesperado: ${e.message}")
+            api.postUsuario(dto)
         }
     }
 
     suspend fun putUsuario(id: Int, request: UsuarioResponse): Resource<Unit> {
-        return try {
+        return safeApiCallUnit {
             val dto = UsuarioRequest(
                 userName = request.userName,
                 password = request.password
             )
-            val response = api.putUsuario(id, dto)
-            if (response.isSuccessful) {
-                Resource.Success(Unit)
-            } else {
-                Resource.Error("HTTP ${response.code()} ${response.message()}")
-            }
-        } catch (e: IOException) {
-            Resource.Error("Error de red: ${e.message}")
-        } catch (e: HttpException) {
-            Resource.Error("Error HTTP ${e.code()}: ${e.message()}")
-        } catch (e: Exception) {
-            Resource.Error("Error inesperado: ${e.message}")
+            api.putUsuario(id, dto)
         }
     }
 
-    suspend fun deleteUsuario(id: Int): Resource<Unit> {
-        return try {
-            val response = api.deleteUsuario(id)
-            if (response.isSuccessful) {
-                Resource.Success(Unit)
-            } else {
-                Resource.Error("HTTP ${response.code()} ${response.message()}")
-            }
-        } catch (e: IOException) {
-            Resource.Error("Error de red: ${e.message}")
-        } catch (e: HttpException) {
-            Resource.Error("Error HTTP ${e.code()}: ${e.message()}")
-        } catch (e: Exception) {
-            Resource.Error("Error inesperado: ${e.message}")
-        }
-    }
+    suspend fun deleteUsuario(id: Int): Resource<Unit> =
+        safeApiCallUnit { api.deleteUsuario(id) }
 
-    suspend fun getBudgets(): Resource<List<BudgetResponse>> {
-        return try {
-            val response = api.getBudgets()
-            if (response.isSuccessful) {
-                response.body()?.let { Resource.Success(it) }
-                    ?: Resource.Error("Respuesta vacía del servidor")
-            } else {
-                Resource.Error("HTTP ${response.code()} ${response.message()}")
-            }
-        } catch (e: IOException) {
-            Resource.Error("Error de red: ${e.message}")
-        } catch (e: HttpException) {
-            Resource.Error("Error HTTP ${e.code()}: ${e.message()}")
-        } catch (e: Exception) {
-            Resource.Error("Error inesperado: ${e.message}")
-        }
-    }
+    // Budgets
+    suspend fun getBudgets(): Resource<List<BudgetResponse>> =
+        safeApiCall { api.getBudgets() }
 
-    suspend fun getBudget(id: Int): Resource<BudgetResponse> {
-        return try {
-            val response = api.getBudget(id)
-            if (response.isSuccessful) {
-                response.body()?.let { Resource.Success(it) }
-                    ?: Resource.Error("Respuesta vacía del servidor")
-            } else {
-                Resource.Error("HTTP ${response.code()} ${response.message()}")
-            }
-        } catch (e: IOException) {
-            Resource.Error("Error de red: ${e.message}")
-        } catch (e: HttpException) {
-            Resource.Error("Error HTTP ${e.code()}: ${e.message()}")
-        } catch (e: Exception) {
-            Resource.Error("Error inesperado: ${e.message}")
-        }
-    }
+    suspend fun getBudget(id: Int): Resource<BudgetResponse> =
+        safeApiCall { api.getBudget(id) }
 
-    suspend fun postBudget(request: BudgetRequest): Resource<BudgetResponse> {
-        return try {
-            val response = api.postBudget(request)
-            if (response.isSuccessful) {
-                response.body()?.let { Resource.Success(it) }
-                    ?: Resource.Error("Respuesta vacía del servidor")
-            } else {
-                Resource.Error("HTTP ${response.code()} ${response.message()}")
-            }
-        } catch (e: IOException) {
-            Resource.Error("Error de red: ${e.message}")
-        } catch (e: HttpException) {
-            Resource.Error("Error HTTP ${e.code()}: ${e.message()}")
-        } catch (e: Exception) {
-            Resource.Error("Error inesperado: ${e.message}")
-        }
-    }
+    suspend fun postBudget(request: BudgetRequest): Resource<BudgetResponse> =
+        safeApiCall { api.postBudget(request) }
 
-    suspend fun putBudget(id: Int, request: BudgetRequest): Resource<Unit> {
-        return try {
-            val response = api.putBudget(id, request)
-            if (response.isSuccessful) {
-                Resource.Success(Unit)
-            } else {
-                Resource.Error("HTTP ${response.code()} ${response.message()}")
-            }
-        } catch (e: IOException) {
-            Resource.Error("Error de red: ${e.message}")
-        } catch (e: HttpException) {
-            Resource.Error("Error HTTP ${e.code()}: ${e.message()}")
-        } catch (e: Exception) {
-            Resource.Error("Error inesperado: ${e.message}")
-        }
-    }
+    suspend fun putBudget(id: Int, request: BudgetRequest): Resource<Unit> =
+        safeApiCallUnit { api.putBudget(id, request) }
 
-    suspend fun deleteBudget(id: Int): Resource<Unit> {
-        return try {
-            val response = api.deleteBudget(id)
-            if (response.isSuccessful) {
-                Resource.Success(Unit)
-            } else {
-                Resource.Error("HTTP ${response.code()} ${response.message()}")
-            }
-        } catch (e: IOException) {
-            Resource.Error("Error de red: ${e.message}")
-        } catch (e: HttpException) {
-            Resource.Error("Error HTTP ${e.code()}: ${e.message()}")
-        } catch (e: Exception) {
-            Resource.Error("Error inesperado: ${e.message}")
-        }
-    }
+    suspend fun deleteBudget(id: Int): Resource<Unit> =
+        safeApiCallUnit { api.deleteBudget(id) }
 
-    suspend fun getDebts(): Resource<List<DebtResponse>> {
-        return try {
-            val response = api.getDebts()
-            if (response.isSuccessful) {
-                response.body()?.let { Resource.Success(it) }
-                    ?: Resource.Error("Respuesta vacía del servidor")
-            } else {
-                Resource.Error("HTTP ${response.code()} ${response.message()}")
-            }
-        } catch (e: IOException) {
-            Resource.Error("Error de red: ${e.message}")
-        } catch (e: HttpException) {
-            Resource.Error("Error HTTP ${e.code()}: ${e.message()}")
-        } catch (e: Exception) {
-            Resource.Error("Error inesperado: ${e.message}")
-        }
-    }
+    // Debts
+    suspend fun getDebts(): Resource<List<DebtResponse>> =
+        safeApiCall { api.getDebts() }
 
-    suspend fun getDebt(id: Int): Resource<DebtResponse> {
-        return try {
-            val response = api.getDebt(id)
-            if (response.isSuccessful) {
-                response.body()?.let { Resource.Success(it) }
-                    ?: Resource.Error("Respuesta vacía del servidor")
-            } else {
-                Resource.Error("HTTP ${response.code()} ${response.message()}")
-            }
-        } catch (e: IOException) {
-            Resource.Error("Error de red: ${e.message}")
-        } catch (e: HttpException) {
-            Resource.Error("Error HTTP ${e.code()}: ${e.message()}")
-        } catch (e: Exception) {
-            Resource.Error("Error inesperado: ${e.message}")
-        }
-    }
+    suspend fun getDebt(id: Int): Resource<DebtResponse> =
+        safeApiCall { api.getDebt(id) }
 
-    suspend fun postDebt(request: DebtRequest): Resource<DebtResponse> {
-        return try {
-            val response = api.postDebt(request)
-            if (response.isSuccessful) {
-                response.body()?.let { Resource.Success(it) }
-                    ?: Resource.Error("Respuesta vacía del servidor")
-            } else {
-                Resource.Error("HTTP ${response.code()} ${response.message()}")
-            }
-        } catch (e: IOException) {
-            Resource.Error("Error de red: ${e.message}")
-        } catch (e: HttpException) {
-            Resource.Error("Error HTTP ${e.code()}: ${e.message()}")
-        } catch (e: Exception) {
-            Resource.Error("Error inesperado: ${e.message}")
-        }
-    }
+    suspend fun postDebt(request: DebtRequest): Resource<DebtResponse> =
+        safeApiCall { api.postDebt(request) }
 
-    suspend fun putDebt(id: Int, request: DebtRequest): Resource<Unit> {
-        return try {
-            val response = api.putDebt(id, request)
-            if (response.isSuccessful) {
-                Resource.Success(Unit)
-            } else {
-                Resource.Error("HTTP ${response.code()} ${response.message()}")
-            }
-        } catch (e: IOException) {
-            Resource.Error("Error de red: ${e.message}")
-        } catch (e: HttpException) {
-            Resource.Error("Error HTTP ${e.code()}: ${e.message()}")
-        } catch (e: Exception) {
-            Resource.Error("Error inesperado: ${e.message}")
-        }
-    }
+    suspend fun putDebt(id: Int, request: DebtRequest): Resource<Unit> =
+        safeApiCallUnit { api.putDebt(id, request) }
 
-    suspend fun deleteDebt(id: Int): Resource<Unit> {
-        return try {
-            val response = api.deleteDebt(id)
-            if (response.isSuccessful) {
-                Resource.Success(Unit)
-            } else {
-                Resource.Error("HTTP ${response.code()} ${response.message()}")
-            }
-        } catch (e: IOException) {
-            Resource.Error("Error de red: ${e.message}")
-        } catch (e: HttpException) {
-            Resource.Error("Error HTTP ${e.code()}: ${e.message()}")
-        } catch (e: Exception) {
-            Resource.Error("Error inesperado: ${e.message}")
-        }
-    }
+    suspend fun deleteDebt(id: Int): Resource<Unit> =
+        safeApiCallUnit { api.deleteDebt(id) }
 
-    suspend fun getGoals(): Resource<List<GoalResponse>> {
-        return try {
-            val response = api.getGoals()
-            if (response.isSuccessful) {
-                response.body()?.let { Resource.Success(it) }
-                    ?: Resource.Error("Respuesta vacía del servidor")
-            } else {
-                Resource.Error("HTTP ${response.code()} ${response.message()}")
-            }
-        } catch (e: IOException) {
-            Resource.Error("Error de red: ${e.message}")
-        } catch (e: HttpException) {
-            Resource.Error("Error HTTP ${e.code()}: ${e.message()}")
-        } catch (e: Exception) {
-            Resource.Error("Error inesperado: ${e.message}")
-        }
-    }
+    // Goals
+    suspend fun getGoals(): Resource<List<GoalResponse>> =
+        safeApiCall { api.getGoals() }
 
-    suspend fun getGoal(id: Int): Resource<GoalResponse> {
-        return try {
-            val response = api.getGoal(id)
-            if (response.isSuccessful) {
-                response.body()?.let { Resource.Success(it) }
-                    ?: Resource.Error("Respuesta vacía del servidor")
-            } else {
-                Resource.Error("HTTP ${response.code()} ${response.message()}")
-            }
-        } catch (e: IOException) {
-            Resource.Error("Error de red: ${e.message}")
-        } catch (e: HttpException) {
-            Resource.Error("Error HTTP ${e.code()}: ${e.message()}")
-        } catch (e: Exception) {
-            Resource.Error("Error inesperado: ${e.message}")
-        }
-    }
+    suspend fun getGoal(id: Int): Resource<GoalResponse> =
+        safeApiCall { api.getGoal(id) }
 
-    suspend fun postGoal(request: GoalRequest): Resource<GoalResponse> {
-        return try {
-            val response = api.postGoal(request)
-            if (response.isSuccessful) {
-                response.body()?.let { Resource.Success(it) }
-                    ?: Resource.Error("Respuesta vacía del servidor")
-            } else {
-                Resource.Error("HTTP ${response.code()} ${response.message()}")
-            }
-        } catch (e: IOException) {
-            Resource.Error("Error de red: ${e.message}")
-        } catch (e: HttpException) {
-            Resource.Error("Error HTTP ${e.code()}: ${e.message()}")
-        } catch (e: Exception) {
-            Resource.Error("Error inesperado: ${e.message}")
-        }
-    }
+    suspend fun postGoal(request: GoalRequest): Resource<GoalResponse> =
+        safeApiCall { api.postGoal(request) }
 
-    suspend fun putGoal(id: Int, request: GoalRequest): Resource<Unit> {
-        return try {
-            val response = api.putGoal(id, request)
-            if (response.isSuccessful) {
-                Resource.Success(Unit)
-            } else {
-                Resource.Error("HTTP ${response.code()} ${response.message()}")
-            }
-        } catch (e: IOException) {
-            Resource.Error("Error de red: ${e.message}")
-        } catch (e: HttpException) {
-            Resource.Error("Error HTTP ${e.code()}: ${e.message()}")
-        } catch (e: Exception) {
-            Resource.Error("Error inesperado: ${e.message}")
-        }
-    }
+    suspend fun putGoal(id: Int, request: GoalRequest): Resource<Unit> =
+        safeApiCallUnit { api.putGoal(id, request) }
 
-    suspend fun deleteGoal(id: Int): Resource<Unit> {
-        return try {
-            val response = api.deleteGoal(id)
-            if (response.isSuccessful) {
-                Resource.Success(Unit)
-            } else {
-                Resource.Error("HTTP ${response.code()} ${response.message()}")
-            }
-        } catch (e: IOException) {
-            Resource.Error("Error de red: ${e.message}")
-        } catch (e: HttpException) {
-            Resource.Error("Error HTTP ${e.code()}: ${e.message()}")
-        } catch (e: Exception) {
-            Resource.Error("Error inesperado: ${e.message}")
-        }
-    }
+    suspend fun deleteGoal(id: Int): Resource<Unit> =
+        safeApiCallUnit { api.deleteGoal(id) }
 
-    suspend fun getTransactions(): Resource<List<TransactionResponse>> {
-        return try {
-            val response = api.getTransactions()
-            if (response.isSuccessful) {
-                response.body()?.let { Resource.Success(it) }
-                    ?: Resource.Error("Respuesta vacía del servidor")
-            } else {
-                Resource.Error("HTTP ${response.code()} ${response.message()}")
-            }
-        } catch (e: IOException) {
-            Resource.Error("Error de red: ${e.message}")
-        } catch (e: HttpException) {
-            Resource.Error("Error HTTP ${e.code()}: ${e.message()}")
-        } catch (e: Exception) {
-            Resource.Error("Error inesperado: ${e.message}")
-        }
-    }
+    // Transactions
+    suspend fun getTransactions(): Resource<List<TransactionResponse>> =
+        safeApiCall { api.getTransactions() }
 
-    suspend fun getTransaction(id: Int): Resource<TransactionResponse> {
-        return try {
-            val response = api.getTransaction(id)
-            if (response.isSuccessful) {
-                response.body()?.let { Resource.Success(it) }
-                    ?: Resource.Error("Respuesta vacía del servidor")
-            } else {
-                Resource.Error("HTTP ${response.code()} ${response.message()}")
-            }
-        } catch (e: IOException) {
-            Resource.Error("Error de red: ${e.message}")
-        } catch (e: HttpException) {
-            Resource.Error("Error HTTP ${e.code()}: ${e.message()}")
-        } catch (e: Exception) {
-            Resource.Error("Error inesperado: ${e.message}")
-        }
-    }
+    suspend fun getTransaction(id: Int): Resource<TransactionResponse> =
+        safeApiCall { api.getTransaction(id) }
 
-    suspend fun postTransaction(request: TransactionRequest): Resource<TransactionResponse> {
-        return try {
-            val response = api.postTransaction(request)
-            if (response.isSuccessful) {
-                response.body()?.let { Resource.Success(it) }
-                    ?: Resource.Error("Respuesta vacía del servidor")
-            } else {
-                Resource.Error("HTTP ${response.code()} ${response.message()}")
-            }
-        } catch (e: IOException) {
-            Resource.Error("Error de red: ${e.message}")
-        } catch (e: HttpException) {
-            Resource.Error("Error HTTP ${e.code()}: ${e.message()}")
-        } catch (e: Exception) {
-            Resource.Error("Error inesperado: ${e.message}")
-        }
-    }
+    suspend fun postTransaction(request: TransactionRequest): Resource<TransactionResponse> =
+        safeApiCall { api.postTransaction(request) }
 
-    suspend fun putTransaction(id: Int, request: TransactionRequest): Resource<Unit> {
-        return try {
-            val response = api.putTransaction(id, request)
-            if (response.isSuccessful) {
-                Resource.Success(Unit)
-            } else {
-                Resource.Error("HTTP ${response.code()} ${response.message()}")
-            }
-        } catch (e: IOException) {
-            Resource.Error("Error de red: ${e.message}")
-        } catch (e: HttpException) {
-            Resource.Error("Error HTTP ${e.code()}: ${e.message()}")
-        } catch (e: Exception) {
-            Resource.Error("Error inesperado: ${e.message}")
-        }
-    }
+    suspend fun putTransaction(id: Int, request: TransactionRequest): Resource<Unit> =
+        safeApiCallUnit { api.putTransaction(id, request) }
 
-    suspend fun deleteTransaction(id: Int): Resource<Unit> {
-        return try {
-            val response = api.deleteTransaction(id)
-            if (response.isSuccessful) {
-                Resource.Success(Unit)
-            } else {
-                Resource.Error("HTTP ${response.code()} ${response.message()}")
-            }
-        } catch (e: IOException) {
-            Resource.Error("Error de red: ${e.message}")
-        } catch (e: HttpException) {
-            Resource.Error("Error HTTP ${e.code()}: ${e.message()}")
-        } catch (e: Exception) {
-            Resource.Error("Error inesperado: ${e.message}")
-        }
-    }
+    suspend fun deleteTransaction(id: Int): Resource<Unit> =
+        safeApiCallUnit { api.deleteTransaction(id) }
 }
