@@ -114,59 +114,84 @@ class DebtViewModel @Inject constructor(
 
         val userId = userDataStore.userIdFlow.firstOrNull()
         if (userId == null) {
-            _uiState.update {
-                it.copy(
-                    cargando = false,
-                    error = "Usuario no autenticado"
-                )
-            }
+            handleAuthenticationError()
             return@launch
         }
 
+        loadDebtsForUser(userId)
+    }
+
+    private suspend fun loadDebtsForUser(userId: Int) {
         getDebtsUC(userId).collect { listaFiltrada ->
-            val deudasActualizadas = listaFiltrada.map { deuda ->
-                when {
-                    deuda.status == DebtStatus.PAID -> deuda
+            val deudasActualizadas = procesarDeudas(listaFiltrada)
+            val (deudasActivas, totalRestante) = calcularEstadisticas(deudasActualizadas)
 
-                    deuda.remainingAmount == deuda.principalAmount -> {
-                        val saldoActual = calcularSaldoActual(deuda)
-                        val nuevoEstado = if (diasEntre(hoy(), deuda.dueDate) < 0) {
-                            DebtStatus.OVERDUE
-                        } else {
-                            DebtStatus.ACTIVE
-                        }
-                        deuda.copy(
-                            remainingAmount = saldoActual,
-                            status = nuevoEstado
-                        )
-                    }
-
-                    else -> {
-                        val nuevoEstado = if (diasEntre(hoy(), deuda.dueDate) < 0) {
-                            DebtStatus.OVERDUE
-                        } else {
-                            deuda.status
-                        }
-                        deuda.copy(status = nuevoEstado)
-                    }
-                }
-            }
-
-            val deudasActivas = deudasActualizadas.filter {
-                it.status == DebtStatus.ACTIVE || it.status == DebtStatus.OVERDUE
-            }
-            val totalRestante = deudasActivas.sumOf { it.remainingAmount }
-
-            _uiState.update {
-                it.copy(
-                    deudas = deudasActualizadas,
-                    cantidadActivas = deudasActivas.size,
-                    totalRestante = totalRestante,
-                    cargando = false
-                )
-            }
-
+            actualizarEstadoUI(deudasActualizadas, deudasActivas, totalRestante)
             checkAndNotifyDueDebts(deudasActualizadas)
+        }
+    }
+
+    private fun handleAuthenticationError() {
+        _uiState.update {
+            it.copy(
+                cargando = false,
+                error = "Usuario no autenticado"
+            )
+        }
+    }
+
+    private fun procesarDeudas(deudas: List<Debt>): List<Debt> {
+        return deudas.map { deuda ->
+            when {
+                deuda.status == DebtStatus.PAID -> deuda
+                deuda.remainingAmount == deuda.principalAmount -> procesarDeudaConSaldoCompleto(deuda)
+                else -> actualizarEstadoDeuda(deuda)
+            }
+        }
+    }
+
+    private fun procesarDeudaConSaldoCompleto(deuda: Debt): Debt {
+        val saldoActual = calcularSaldoActual(deuda)
+        val nuevoEstado = determinarEstadoDeuda(deuda)
+        return deuda.copy(
+            remainingAmount = saldoActual,
+            status = nuevoEstado
+        )
+    }
+
+    private fun actualizarEstadoDeuda(deuda: Debt): Debt {
+        val nuevoEstado = determinarEstadoDeuda(deuda)
+        return deuda.copy(status = nuevoEstado)
+    }
+
+    private fun determinarEstadoDeuda(deuda: Debt): DebtStatus {
+        return if (diasEntre(hoy(), deuda.dueDate) < 0) {
+            DebtStatus.OVERDUE
+        } else {
+            if (deuda.remainingAmount == deuda.principalAmount) DebtStatus.ACTIVE else deuda.status
+        }
+    }
+
+    private fun calcularEstadisticas(deudas: List<Debt>): Pair<List<Debt>, Double> {
+        val deudasActivas = deudas.filter {
+            it.status == DebtStatus.ACTIVE || it.status == DebtStatus.OVERDUE
+        }
+        val totalRestante = deudasActivas.sumOf { it.remainingAmount }
+        return Pair(deudasActivas, totalRestante)
+    }
+
+    private fun actualizarEstadoUI(
+        deudasActualizadas: List<Debt>,
+        deudasActivas: List<Debt>,
+        totalRestante: Double
+    ) {
+        _uiState.update {
+            it.copy(
+                deudas = deudasActualizadas,
+                cantidadActivas = deudasActivas.size,
+                totalRestante = totalRestante,
+                cargando = false
+            )
         }
     }
 
